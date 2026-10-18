@@ -7,10 +7,12 @@ from uuid import uuid4
 from urllib.parse import urlsplit
 
 from agent.preflight import prepare_task, review_structure
+from agent.model import ModelError
 from ima.client import ImaError
 from .service import DEFAULT_KB, WorkbenchService, demo_result
 
 STATIC = Path(__file__).resolve().parent / "static"
+MAX_REQUEST_BYTES = 2 * 1024 * 1024
 ASSETS = {"/": ("index.html", "text/html; charset=utf-8"), "/static/style.css": ("style.css", "text/css; charset=utf-8"), "/static/app.js": ("app.js", "text/javascript; charset=utf-8"), "/static/illustration.svg": ("illustration.svg", "image/svg+xml")}
 ASSETS["/static/knowledge.css"] = ("knowledge.css", "text/css; charset=utf-8")
 
@@ -78,7 +80,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_payload(415, {"error": "请使用 JSON 请求"})
         try:
             length = int(self.headers.get("Content-Length", "0"))
-            if not 0 < length <= 262144:
+            if not 0 < length <= MAX_REQUEST_BYTES:
                 return self.send_payload(413, {"error": "请求为空或内容过大"})
             body = json.loads(self.rfile.read(length).decode("utf-8"))
             if not isinstance(body, dict):
@@ -92,6 +94,14 @@ class Handler(BaseHTTPRequestHandler):
                 if not all(key in body for key in ["task", "evidence", "article"]):
                     raise ValueError()
                 result = review_structure(body["task"], body["evidence"], body["article"])
+            elif path == "/api/generate":
+                if not all(key in body for key in ["task", "context"]):
+                    raise ValueError()
+                result = self.server.service.generate(body["task"], body["context"])
+            elif path == "/api/verify":
+                if not all(key in body for key in ["task", "evidence", "article"]):
+                    raise ValueError()
+                result = self.server.service.verify(body["task"], body["evidence"], body["article"])
             elif path in {"/api/probe", "/api/search", "/api/browse", "/api/read", "/api/retrieve"}:
                 name = body.get("knowledge_base", DEFAULT_KB)
                 if not isinstance(name, str) or not 1 <= len(name.strip()) <= 200:
@@ -120,6 +130,8 @@ class Handler(BaseHTTPRequestHandler):
         except (ValueError, UnicodeDecodeError, TypeError):
             return self.send_payload(400, {"error": "任务格式不正确，请检查填写内容"})
         except ImaError as error:
+            return self.send_payload(400, {"error": str(error), "kind": error.kind})
+        except ModelError as error:
             return self.send_payload(400, {"error": str(error), "kind": error.kind})
         except Exception:
             return self.send_payload(500, {"error": "操作未完成，请重试或检查本机配置"})
