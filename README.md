@@ -4,25 +4,21 @@
 
 **当前状态：已有浏览器工作台、三平台演示、编辑与导出、结构检查，以及真实 ima 检索、目录浏览、原文与图片读取、选中资料批量调用。尚未实现大模型生成和完整语义核验，不能作为已完成参赛作品提交。**
 
-## 三人快速开始
+## 快速开始
 
 ```bash
 git clone https://github.com/Pragues1226/huawei-pc-marketing-agent.git
 cd huawei-pc-marketing-agent
 ```
 
-按分工切换对应分支：
+当前由仓库拥有者集中完成第一个完整可运行版本。协作者在首版稳定后，从最新 main 建立按改进目标命名的分支：
 
 ```bash
-# A：场景、生成、提示词、核验
-git switch feat/agent
-# B：ima 接入、检索、事实与图片来源
-git switch feat/ima
-# C：页面、部署、合并与提交
-git switch feat/app
+git fetch origin
+git switch -c improve/your-topic origin/main
 ```
 
-每人只执行自己角色对应的一条切换命令。先读 [协作说明](CONTRIBUTING.md)、[接口约定](docs/interfaces.md) 和 [210 分钟任务表](docs/team-plan.md)。
+不按成员预分配模块。先读 [协作说明](CONTRIBUTING.md)、[接口约定](docs/interfaces.md) 和 [首版开发与迭代计划](docs/team-plan.md)。
 
 ## 最小交付范围
 
@@ -36,13 +32,13 @@ git switch feat/app
 ## 仓库结构
 
 ```text
-agent/                  A：需求解析、策略、生成与核验
-prompts/                A：系统提示词
-ima/                    B：ima 调用与来源处理
-app/                    C：交互页面
-deploy/                 C：部署配置
+agent/                  需求解析、策略、生成与核验
+prompts/                系统提示词
+ima/                    ima 调用与来源处理
+app/                    交互页面
+deploy/                 部署配置
 contracts/              三方共同遵守的数据格式；修改由集成人确认
-docs/                   分工、架构、验收和提交材料
+docs/                   开发计划、架构、验收和提交材料
 .github/                PR 与任务模板
 ```
 
@@ -84,7 +80,7 @@ demo 仅使用虚构开发数据，未调用 ima 或模型，也不包含真实�
 
 ima 安装并配置好凭证后，按 [ima 接入步骤](docs/ima-setup.md) 运行 python -m ima probe，真实验证共享库连接。
 
-当前工作台使用 Python 本地服务与静态页面，不需要前端构建依赖。C 后续按参赛部署环境补充公网部署方式；本机服务不能代替评审可访问的部署链接。
+当前工作台使用 Python 本地服务与静态页面，不需要前端构建依赖。后续按参赛部署环境补充公网部署方式；本机服务不能代替评审可访问的部署链接。
 
 配置字段见 [.env.example](.env.example)。凭证仅在各自本机或部署平台配置，不能提交到仓库。
 
@@ -92,7 +88,7 @@ ima 安装并配置好凭证后，按 [ima 接入步骤](docs/ima-setup.md) 运�
 
 - [架构与数据流](docs/architecture.md)
 - [统一接口](docs/interfaces.md)
-- [团队分工与时间表](docs/team-plan.md)
+- [首版开发与迭代计划](docs/team-plan.md)
 - [验收场景](docs/acceptance.md)
 - [提交检查清单](docs/submission.md)
 - [作品说明书底稿](docs/project-description.md)
