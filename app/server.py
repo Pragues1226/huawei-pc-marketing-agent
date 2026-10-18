@@ -1,4 +1,4 @@
-"""Loopback-only development workbench, using Python's standard HTTP server."""
+"""Workbench HTTP server with explicit public-origin allowlisting."""
 
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -20,9 +20,34 @@ ASSETS["/static/knowledge.css"] = ("knowledge.css", "text/css; charset=utf-8")
 class WorkbenchServer(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, port=8765, service=None):
+    def __init__(self, port=8765, service=None, host="127.0.0.1", public_origin=None):
+        self.public_origin = self._parse_public_origin(public_origin)
         self.service = service or WorkbenchService()
-        super().__init__(("127.0.0.1", port), Handler)
+        super().__init__((host, port), Handler)
+
+    @staticmethod
+    def _parse_public_origin(value):
+        if not value:
+            return None
+        parsed = urlsplit(value.strip())
+        if (parsed.scheme != "https" or not parsed.hostname or parsed.username or
+                parsed.password or parsed.path or parsed.query or parsed.fragment):
+            raise ValueError("WORKBENCH_PUBLIC_ORIGIN 必须是完整 HTTPS 来源，如 https://example.com")
+        try:
+            parsed.port
+        except ValueError as error:
+            raise ValueError("WORKBENCH_PUBLIC_ORIGIN 端口无效") from error
+        return f"https://{parsed.netloc.lower()}"
+
+    @property
+    def allowed_origins(self):
+        local = {f"http://127.0.0.1:{self.server_port}", f"http://localhost:{self.server_port}"}
+        return local | ({self.public_origin} if self.public_origin else set())
+
+    @property
+    def allowed_hosts(self):
+        local = {f"127.0.0.1:{self.server_port}", f"localhost:{self.server_port}"}
+        return local | ({urlsplit(self.public_origin).netloc} if self.public_origin else set())
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -33,7 +58,8 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def host_ok(self):
-        return self.headers.get("Host", "") in {f"127.0.0.1:{self.server.server_port}", f"localhost:{self.server.server_port}"}
+        hosts = self.headers.get_all("Host", [])
+        return len(hosts) == 1 and hosts[0].lower() in self.server.allowed_hosts
 
     def send_payload(self, status, payload, content_type="application/json; charset=utf-8"):
         if not isinstance(payload, bytes):
@@ -43,7 +69,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(payload)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
-        self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'")
+        frames = "https://modelscope.cn https://www.modelscope.cn" if self.server.public_origin else "'none'"
+        self.send_header("Content-Security-Policy", f"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors {frames}; base-uri 'none'")
         self.end_headers()
         try:
             self.wfile.write(payload)
@@ -52,7 +79,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if not self.host_ok():
-            return self.send_payload(403, {"error": "仅允许本机工作台访问"})
+            return self.send_payload(403, {"error": "访问地址未配置或不匹配"})
         path = urlsplit(self.path).path
         if path == "/api/status":
             return self.send_payload(200, self.server.service.status())
@@ -71,10 +98,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if not self.host_ok():
-            return self.send_payload(403, {"error": "仅允许本机工作台访问"})
-        origin = self.headers.get("Origin")
-        valid_origins = {f"http://127.0.0.1:{self.server.server_port}", f"http://localhost:{self.server.server_port}"}
-        if origin and origin not in valid_origins:
+            return self.send_payload(403, {"error": "访问地址未配置或不匹配"})
+        origins = self.headers.get_all("Origin", [])
+        if len(origins) > 1:
+            return self.send_payload(403, {"error": "请求来源不匹配"})
+        origin = origins[0] if origins else None
+        if (origin and origin not in self.server.allowed_origins) or (
+                self.server.public_origin and not origin):
             return self.send_payload(403, {"error": "请求来源不匹配"})
         if self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
             return self.send_payload(415, {"error": "请使用 JSON 请求"})
