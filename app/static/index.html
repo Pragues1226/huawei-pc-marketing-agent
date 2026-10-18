@@ -7,6 +7,7 @@
   <title>华为 PC · 内容工作台</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/knowledge.css">
   <script src="/static/app.js" defer></script>
 </head>
 <body>
@@ -34,6 +35,7 @@
           <div class="panel-heading"><div><span class="section-index">01</span><h2>这次，为谁而写？</h2></div><span class="subtle">任务设置</span></div>
           <div class="mode-switch" aria-label="工作模式"><button class="selected" data-mode="demo">演示预览</button><button data-mode="live">真实资料检索</button></div>
           <div id="mode-note" class="mode-note"><span>◈</span> 当前使用规则示例，不调用模型或真实产品资料。</div>
+          <button id="browse-library" class="library-entry" type="button" hidden>⌘ 浏览知识库目录 <span>→</span></button>
           <form id="task-form" novalidate>
             <label for="product">产品型号 <span>*</span></label><input id="product" name="product" value="HUAWEI MateBook 14（鸿蒙版）" placeholder="填写具体型号、系统与销售版本" maxlength="160">
             <label>发布平台 <span>*</span></label>
@@ -70,7 +72,8 @@
 
     <section id="history-view" class="view" hidden><div class="page-heading"><div><div class="eyebrow">YOUR RECENT WORK</div><h1>最近任务<span>。</span></h1><p>演示任务只保存在当前浏览器，最多保留 10 条。</p></div><button id="clear-history" class="button secondary">清空记录</button></div><div id="history-list" class="history-list"></div></section>
 
-    <section id="connection-view" class="view" hidden><div class="page-heading"><div><div class="eyebrow">A FOUNDATION OF FACTS</div><h1>让内容，连接真实依据<span>。</span></h1><p>检查本机环境，再确认指定共享知识库是否可访问。</p></div><button id="refresh-status" class="button secondary">↻ 刷新配置状态</button></div><div class="connection-grid"><section class="panel connection-panel"><h2>本机连接配置</h2><p class="subtle">凭证由本机配置读取，页面只显示是否就绪。</p><div id="config-checks"></div><label for="kb-name">共享知识库名称</label><input id="kb-name" value="任德耀新建华为PC知识库" maxlength="200"><button id="probe-connection" class="button primary">检查共享库连接 <span>→</span></button><div id="probe-result" class="connection-result" role="status"></div></section><section class="panel connection-guide"><div class="guide-symbol">⌘</div><h2>开始前，完成这三步</h2><ol><li><strong>用同一账号加入共享库</strong><p>扫描赛题手册第 7 页二维码，确认共享库出现在 ima 中。</p></li><li><strong>在本机配置凭证</strong><p>Client ID、API Key 和官方脚本路径保存在仓库的 .env 文件中。修改后需重启工作台。</p></li><li><strong>检查连接，再搜索产品</strong><p>共享库可访问后，在创作页切换“真实资料检索”，检索具体型号。</p></li></ol><div class="guide-note">当前已提供真实连接与条目检索。产品原文、真实配图获取与模型生成仍需后续联调。</div></section></div></section>
+    <section id="connection-view" class="view" hidden><div class="page-heading"><div><div class="eyebrow">A FOUNDATION OF FACTS</div><h1>让内容，连接真实依据<span>。</span></h1><p>检查本机环境，再确认指定共享知识库是否可访问。</p></div><button id="refresh-status" class="button secondary">↻ 刷新配置状态</button></div><div class="connection-grid"><section class="panel connection-panel"><h2>本机连接配置</h2><p class="subtle">凭证由本机配置读取，页面只显示是否就绪。</p><div id="config-checks"></div><label for="kb-name">共享知识库名称</label><input id="kb-name" value="任德耀新建华为PC知识库" maxlength="200"><button id="probe-connection" class="button primary">检查共享库连接 <span>→</span></button><div id="probe-result" class="connection-result" role="status"></div></section><section class="panel connection-guide"><div class="guide-symbol">⌘</div><h2>开始前，完成这三步</h2><ol><li><strong>用同一账号加入共享库</strong><p>扫描赛题手册第 7 页二维码，确认共享库出现在 ima 中。</p></li><li><strong>在本机配置凭证</strong><p>Client ID、API Key 和官方脚本路径保存在仓库的 .env 文件中。修改后需重启工作台。</p></li><li><strong>检查连接，再搜索产品</strong><p>共享库可访问后，在创作页切换“真实资料检索”，检索具体型号。</p></li></ol><div class="guide-note">已支持真实搜索、目录浏览、原文与图片预览，以及批量读取选中资料。模型生成与产品声明核验仍需继续接入。</div></section></div></section>
+    <dialog id="resource-dialog" class="resource-dialog"><div class="resource-header"><div><span class="source-label real">ima 真实资料</span><h2 id="resource-title"></h2></div><button id="close-resource" class="dialog-close" aria-label="关闭资料">×</button></div><div id="resource-source" class="resource-source"></div><div id="resource-body" class="resource-body"></div><div class="resource-footer"><span>仅从知识库读取，不代表已完成产品语义核验。</span><div><button id="copy-resource" class="button secondary">复制原文</button><button id="select-resource" class="button primary">加入资料篮</button></div></div></dialog>
     <div id="toast" class="toast" role="status" hidden></div>
   </main>
 </body>

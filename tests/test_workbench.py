@@ -16,8 +16,11 @@ class FakeIma:
     def search_bases(self, name, cursor=""):
         return {"info_list": [{"kb_id": "private-kb-test-only", "kb_name": name}], "is_end": True}
 
-    def list_entries(self, kb_id):
+    def list_entries(self, kb_id, cursor="", folder_id=None):
         return {"knowledge_list": [{"media_id": "private-media-test-only", "title": "产品资料"}]}
+
+    def media_info(self, media_id):
+        return {"media_type": 7, "url_info": {"url": "https://test.myqcloud.com/fixture.md"}}
 
     def search_or_browse(self, kb_id, query):
         return {"mode": "search", "data": {"info_list": [{"title": "产品事实.md", "media_id": "private-media-test-only", "highlight_content": "<em>公开摘要</em>"}]}}
@@ -26,7 +29,9 @@ class FakeIma:
 class WorkbenchHttpTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.server = WorkbenchServer(0, service=WorkbenchService(client_factory=FakeIma))
+        service = WorkbenchService(client_factory=FakeIma)
+        service.knowledge.fetcher = lambda info: ("# 本地 HTTP 测试资料\n这不是实际产品信息。".encode(), "text/markdown", "utf-8")
+        cls.server = WorkbenchServer(0, service=service)
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
         cls.thread.start()
         cls.base = f"http://127.0.0.1:{cls.server.server_port}"
@@ -119,6 +124,26 @@ class WorkbenchHttpTests(unittest.TestCase):
     def test_status_does_not_claim_generation_is_implemented(self):
         report = json.loads(self.request("/api/status")[1])
         self.assertFalse(report["live_generation_available"])
+
+    def test_search_read_and_retrieve_form_working_http_chain(self):
+        search = json.loads(self.request("/api/search", {"query": "test"})[1])
+        reference = search["items"][0]["ref"]
+        status, content, _ = self.request("/api/read", {"ref": reference})
+        self.assertEqual(status, 200)
+        self.assertIn("本地 HTTP 测试资料", json.loads(content)["text"])
+        status, content, _ = self.request("/api/retrieve", {"references": [reference], "request_id": "http-chain"})
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(content)["request_id"], "http-chain")
+        self.assertEqual(len(json.loads(content)["documents"]), 1)
+
+    def test_browse_returns_server_references_instead_of_private_ids(self):
+        status, content, _ = self.request("/api/browse", {})
+        self.assertEqual(status, 200)
+        self.assertIn("ref", json.loads(content)["items"][0])
+        self.assertNotIn(b"private-media-test-only", content)
+
+    def test_raw_media_id_is_not_accepted_as_resource_reference(self):
+        self.assertEqual(self.request("/api/read", {"ref": "private-media-test-only"})[0], 400)
 
 
 if __name__ == "__main__":
