@@ -7,12 +7,14 @@ from uuid import uuid4
 from urllib.parse import urlsplit
 
 from agent.preflight import prepare_task, review_structure
+from agent.model import ModelError
 from ima.client import ImaError
 from .service import DEFAULT_KB, WorkbenchService, demo_result
 
 STATIC = Path(__file__).resolve().parent / "static"
 ASSETS = {"/": ("index.html", "text/html; charset=utf-8"), "/static/style.css": ("style.css", "text/css; charset=utf-8"), "/static/app.js": ("app.js", "text/javascript; charset=utf-8"), "/static/illustration.svg": ("illustration.svg", "image/svg+xml")}
 ASSETS["/static/knowledge.css"] = ("knowledge.css", "text/css; charset=utf-8")
+ASSETS["/static/live.js"] = ("live.js", "text/javascript; charset=utf-8")
 
 
 class WorkbenchServer(ThreadingHTTPServer):
@@ -92,6 +94,17 @@ class Handler(BaseHTTPRequestHandler):
                 if not all(key in body for key in ["task", "evidence", "article"]):
                     raise ValueError()
                 result = review_structure(body["task"], body["evidence"], body["article"])
+            elif path == "/api/model/probe":
+                result = self.server.service.model_factory().probe()
+            elif path == "/api/generate":
+                name = body.get("knowledge_base", DEFAULT_KB)
+                if not isinstance(name, str) or not 1 <= len(name.strip()) <= 200 or "task" not in body:
+                    raise ValueError()
+                result = self.server.service.pipeline.generate(body["task"], body.get("references"), name.strip())
+                if result.get("article"):
+                    self.server.service.record_access(name.strip())
+            elif path == "/api/revise":
+                result = self.server.service.pipeline.revise(body.get("run_ref"), revision=body.get("revision"), edited=body.get("article"))
             elif path in {"/api/probe", "/api/search", "/api/browse", "/api/read", "/api/retrieve"}:
                 name = body.get("knowledge_base", DEFAULT_KB)
                 if not isinstance(name, str) or not 1 <= len(name.strip()) <= 200:
@@ -121,5 +134,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_payload(400, {"error": "任务格式不正确，请检查填写内容"})
         except ImaError as error:
             return self.send_payload(400, {"error": str(error), "kind": error.kind})
+        except ModelError as error:
+            return self.send_payload(400, {"error": str(error), "kind": "model"})
         except Exception:
             return self.send_payload(500, {"error": "操作未完成，请重试或检查本机配置"})

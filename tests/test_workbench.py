@@ -121,9 +121,24 @@ class WorkbenchHttpTests(unittest.TestCase):
         self.assertNotIn(b"private-media", content)
         self.assertEqual(json.loads(content)["items"][0]["excerpt"], "公开摘要")
 
-    def test_status_does_not_claim_generation_is_implemented(self):
+    def test_status_requires_model_configuration_for_generation(self):
         report = json.loads(self.request("/api/status")[1])
         self.assertFalse(report["live_generation_available"])
+
+    def test_live_generation_requires_a_task(self):
+        self.assertEqual(self.request("/api/generate", {})[0], 400)
+
+    def test_live_generation_asks_before_model_when_task_incomplete(self):
+        task, _, _ = development_fixture()
+        task["product"] = ""
+        status, content, _ = self.request("/api/generate", {"task": task})
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(content)["status"], "needs_input")
+
+    def test_forged_run_cannot_use_client_supplied_evidence(self):
+        status, content, _ = self.request("/api/revise", {"run_ref": "unknown", "revision": "更自然", "evidence": {"facts": []}})
+        self.assertEqual(status, 400)
+        self.assertEqual(json.loads(content)["kind"], "model")
 
     def test_search_read_and_retrieve_form_working_http_chain(self):
         search = json.loads(self.request("/api/search", {"query": "test"})[1])

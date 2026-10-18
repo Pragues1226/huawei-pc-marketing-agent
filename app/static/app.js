@@ -61,9 +61,9 @@ function selectPlatform(platform) {
 function selectMode(mode) {
   state.mode = mode;
   $$("[data-mode]").forEach(button => button.classList.toggle("selected", button.dataset.mode === mode));
-  $("#mode-note").textContent = mode === "demo" ? "◈ 当前使用规则示例，不调用模型或真实产品资料。" : "⌘ 直接检索 ima，可浏览目录、打开原文和图片，选择资料供后续调用。";
+  $("#mode-note").textContent = mode === "demo" ? "◈ 当前使用规则示例，不调用模型或真实产品资料。" : "⌘ 先检索 ima，选择原文和同型号图片，再生成并核验图文。";
   $("#browse-library").hidden = mode !== "live";
-  $("#generate-label").textContent = mode === "demo" ? "生成演示预览" : "搜索 ima 资料";
+  $("#generate-label").textContent = mode === "demo" ? "生成演示预览" : selection.size ? "生成并核验图文" : "搜索 ima 资料";
   $("#form-footnote").textContent = mode === "demo" ? "演示稿包含占位内容，需要接入 ima 与模型后才能正式生成。" : "原文与图片实时读取；来源、型号和适用条件仍需分别核实。";
   $("#form-message").hidden = true;
 }
@@ -198,7 +198,15 @@ function renderReview() {
 }
 
 function renderResult(result, save = true) {
+  if (result.mode === "live") return renderLiveResult(result);
   state.current = result;
+  $(".cover-preview img").src = "/static/illustration.svg";
+  $(".cover-text").hidden = false;
+  $(".cover-label").textContent = "DEMO ONLY";
+  $(".article-meta small").textContent = "工作台演示 · 非真实体验";
+  $("#demo-banner").replaceChildren(element("div", "", "演示预览 · 规则示例与构图示意，不可发布。"));
+  $("#live-revision")?.remove();
+  $("#copy-article").disabled = false; $("#export-md").disabled = false;
   $("#empty-state").hidden = true;
   $("#search-content").hidden = true;
   $("#result-content").hidden = false;
@@ -297,6 +305,7 @@ function toggleSelection(item) {
 }
 
 function updateBasket() {
+  if (state.mode === "live") $("#generate-label").textContent = selection.size ? "生成并核验图文" : "搜索 ima 资料";
   $$(".selection-button").forEach(button => { button.textContent = selection.has(button.dataset.ref) ? "已选择 ✓" : "选择资料"; });
   const basket = $("#knowledge-basket"); if (!basket) return;
   basket.replaceChildren(element("span", "", "已选 " + selection.size + " / 8 份资料"));
@@ -307,7 +316,9 @@ function updateBasket() {
     const result = await api("/api/retrieve", {knowledge_base: knowledgeName(), references: [...selection.keys()], request_id: crypto.randomUUID()});
     retrievalContext = result; showRetrieved(result);
   }));
-  actions.append(clear, read); basket.append(actions);
+  const create = element("button", "button primary", "用这些资料生成"); create.disabled = !selection.size;
+  create.addEventListener("click", () => createLive(create));
+  actions.append(clear, read, create); basket.append(actions);
 }
 
 function resourceMeta(source) {
@@ -343,7 +354,9 @@ function showRetrieved(result) {
   const toolbar = element("div", "knowledge-toolbar");
   const back = element("button", "button secondary", "← 返回检索结果"); back.addEventListener("click", () => { if (listingState) renderSearch(listingState); else browseDirectory(); });
   const copy = element("button", "button primary", "复制调用结果"); copy.addEventListener("click", async () => { try { await navigator.clipboard.writeText(JSON.stringify(retrievalContext, null, 2)); toast("已复制真实检索内容与来源，可供后续模块调用"); } catch { toast("浏览器未允许复制"); } });
-  toolbar.append(back, copy); container.append(toolbar);
+  const create = element("button", "button primary", "用这些资料生成");
+  create.addEventListener("click", () => createLive(create));
+  toolbar.append(back, copy, create); container.append(toolbar);
   container.append(element("div", "search-notice", "已读取 " + result.documents.length + " 份原文、" + result.images.length + " 张图片。内容仅在本机显示，不保存到代码仓库。"));
   for (const warning of result.warnings) container.append(element("p", "retrieval-warning", warning));
   for (const content of [...result.documents, ...result.images]) {
@@ -359,6 +372,7 @@ async function generate() {
   $("#form-message").hidden = true;
   await withBusy(button, async () => {
     if (state.mode === "live") {
+      if (selection.size) return createLive(button);
       if (!task.product) { $("#form-message").textContent = "请先填写需要检索的具体产品型号。"; $("#form-message").hidden = false; return; }
       const query = task.product.replace(/[（(].*?[）)]/g, "").replace(/^HUAWEI\s+/i, "").trim();
       renderSearch(await api("/api/search", {query, knowledge_base: $("#kb-name").value.trim()}));
@@ -379,20 +393,23 @@ async function generate() {
 }
 
 function articleMarkdown() {
+  if (state.current?.mode === "live") return liveMarkdown();
   const {task, article, evidence, review} = state.current;
   return ["> 开发演示 · 未调用大模型 · 事实和图片为占位 · 不可作为正式发布稿或参赛运行证明", "", "# " + article.title, "", "平台：" + platformNames[task.platform] + "；目标人群：" + task.audience, "型号：" + task.product, "场景：" + task.scenario, "", article.lead, "", article.body, "", article.cta, "", article.tags.map(tag => "#" + tag).join(" "), "", "## 配图方案（待替换 ima 真实图片）", ...article.image_plan.map((image, index) => `${index + 1}. ${image.position}：${image.caption}。${image.reason}`), "", "## 来源状态", ...evidence.sources.map(source => "- " + source.title), "", "## 核验结果", ...review.checks.map(check => "- [" + {pass: "结构通过", pending: "待复核", fail: "需处理"}[check.status] + "] " + check.detail)].join("\n");
 }
 
 async function copyArticle() {
   if (!state.current) return;
+  if (state.current.mode === "live" && state.current.status !== "ready") return toast("核验尚未全部通过，请先处理问题后复制交付稿。");
   try {
     await navigator.clipboard.writeText(articleMarkdown());
-    toast("已复制，包含演示标记与核验说明");
+    toast(state.current.mode === "live" ? "已复制真实文案、来源与核验说明" : "已复制，包含演示标记与核验说明");
   } catch { toast("浏览器未允许复制，请使用导出文件"); }
 }
 
 function exportArticle() {
   if (!state.current) return;
+  if (state.current.mode === "live") return withBusy($("#export-md"), exportLiveHTML);
   const blob = new Blob([articleMarkdown()], {type: "text/markdown;charset=utf-8"});
   const url = URL.createObjectURL(blob);
   const link = element("a"); link.href = url;
@@ -418,6 +435,11 @@ async function saveEdit() {
     article.title = $("#edit-title").value.trim();
     article.body = $("#edit-body").value.trim();
     article.cta = $("#edit-cta").value.trim();
+    if (state.current.mode === "live") {
+      toast("正在对修改后的全文重新核验…");
+      renderLiveResult(await api("/api/revise", {run_ref: state.current.run_ref, article}));
+      return;
+    }
     const review = await api("/api/review", {task: state.current.task, evidence: state.current.evidence, article});
     const updated = {...state.current, article, review};
     renderResult(updated);
@@ -460,7 +482,7 @@ async function refreshStatus() {
     $("#top-status").textContent = connected ? "ima 共享库已连接" : prerequisites ? "凭证就绪 · 待检查共享库" : "ima 待配置";
     $("#connection-shortcut .dot").classList.toggle("amber", !connected);
     $("#nav-connection").classList.toggle("connected", connected);
-    const rows = [["Node.js 运行环境", status.ima.node_available], ["官方 ima 技能脚本", status.ima.official_script_available], ["Client ID", status.ima.client_id_configured], ["API Key", status.ima.api_key_configured], ["模型配置（未实现生成联调）", status.model_configured]];
+    const rows = [["Node.js 运行环境", status.ima.node_available], ["官方 ima 技能脚本", status.ima.official_script_available], ["Client ID", status.ima.client_id_configured], ["API Key", status.ima.api_key_configured], ["图文生成模型配置", status.model_configured]];
     $("#config-checks").replaceChildren(...rows.map(([label, configured]) => {
       const row = element("div", "config-row"); row.append(element("span", "", label), element("span", configured ? "" : "missing", configured ? "已配置" : "待配置")); return row;
     }));

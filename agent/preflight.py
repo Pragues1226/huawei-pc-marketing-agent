@@ -51,7 +51,7 @@ def prepare_task(task):
     }
 
 
-def review_structure(task, evidence, article):
+def review_structure(task, evidence, article, semantic_pending=True):
     """Return checks, always leaving semantic and source authenticity review pending."""
     checks = []
 
@@ -132,8 +132,9 @@ def review_structure(task, evidence, article):
     if not any(c["status"] == "fail" for c in checks):
         add("fact", "pass", "接口结构、请求归属、型号及引用关系检查通过；不代表事实语义通过")
         add("image", "pass", "图片引用、型号标签、数量与编排字段检查通过；未检查实际图像内容")
-    add("fact", "pending", "尚需独立核对正文每条声明与原文、适用条件，并证明来源确实来自 ima")
-    add("image", "pending", "尚需确认图片实际可访问、画面型号一致且来源有效")
-    add("compliance", "pending", "关键词检查不能替代完整语义与营销合规复核")
-    add("platform", "pending", "结构字段检查不能证明场景切入、语气和平台质量，需要内容复核")
+    if semantic_pending:
+        add("fact", "pending", "尚需独立核对正文每条声明与原文、适用条件，并证明来源确实来自 ima")
+        add("image", "pending", "尚需确认图片实际可访问、画面型号一致且来源有效")
+        add("compliance", "pending", "关键词检查不能替代完整语义与营销合规复核")
+        add("platform", "pending", "结构字段检查不能证明场景切入、语气和平台质量，需要内容复核")
     return {"status": "blocked" if any(c["status"] == "fail" for c in checks) else "needs_review", "checks": checks}

@@ -8,8 +8,11 @@ import threading
 from agent.demo import development_fixture
 from agent.platforms import platform_policy
 from agent.preflight import prepare_task, review_structure
+from agent.model import ModelClient
+from agent.pipeline import MarketingPipeline
 from ima.client import ImaClient, ImaError, normalize_base
 from ima.retrieval import ImaKnowledge
+from ima.local import LocalKnowledge
 
 DEFAULT_KB = "任德耀新建华为PC知识库"
 
@@ -84,20 +87,24 @@ def demo_result(task):
 
 
 class WorkbenchService:
-    def __init__(self, client_factory=ImaClient):
+    def __init__(self, client_factory=ImaClient, model_factory=ModelClient):
         self.client_factory = client_factory
         self.lock = threading.Lock()
         self.connection = {"status": "not_checked", "knowledge_base": DEFAULT_KB, "note": "尚未验证共享知识库连接"}
-        self.knowledge = ImaKnowledge(client_factory, self.find_base)
+        self.knowledge = LocalKnowledge(os.environ["LOCAL_KNOWLEDGE_ZIP"]) if os.environ.get("KNOWLEDGE_SOURCE") == "local" else ImaKnowledge(client_factory, self.find_base)
+        self.model_factory = model_factory
+        self.pipeline = MarketingPipeline(self.knowledge, scene_strategy, model_factory)
 
     def status(self):
         with self.lock:
             connection = deepcopy(self.connection)
-        return {"ima": self.client_factory().diagnose(), "connection": connection, "model_configured": bool(os.environ.get("LLM_API_KEY") and os.environ.get("LLM_MODEL")), "live_generation_available": False}
+        model = self.model_factory().diagnose()
+        source = self.knowledge.describe() if isinstance(self.knowledge, LocalKnowledge) else {"mode": "ima", "label": "ima 共享知识库"}
+        return {"ima": self.client_factory().diagnose(), "connection": connection, "model": model, "data_source": source, "model_configured": model["configured"], "live_generation_available": model["configured"]}
 
     def record_access(self, name):
         with self.lock:
-            self.connection = {"status": "connected", "knowledge_base": name, "note": "已成功访问该共享知识库。"}
+            self.connection = {"status": "connected", "knowledge_base": name, "note": "本地知识库已就绪，本次不消耗 ima 资料读取次数。" if isinstance(self.knowledge, LocalKnowledge) else "已成功访问该共享知识库。"}
 
     def find_base(self, client, name):
         cursor, seen, matches = "", set(), {}
@@ -122,6 +129,9 @@ class WorkbenchService:
         return next(iter(matches.values()))
 
     def probe(self, name=DEFAULT_KB):
+        if isinstance(self.knowledge, LocalKnowledge):
+            self.record_access(name)
+            return {"status": "connected", "knowledge_base": name, **self.knowledge.describe()}
         client = self.client_factory()
         try:
             base = self.find_base(client, name)
