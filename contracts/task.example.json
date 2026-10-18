@@ -1,0 +1,10 @@
+{
+  "request_id": "example-task-001",
+  "product": "HUAWEI MateBook 14（鸿蒙版，具体销售版本待确认）",
+  "audience": "准备入学的大学新生",
+  "scenario": "开学购机，兼顾日常学习与携带，先确认专业软件需求",
+  "platform": "xiaohongshu",
+  "goal": "帮助判断是否适合，并引导到店体验",
+  "purchase_stage": "了解与比较",
+  "revision": ""
+}

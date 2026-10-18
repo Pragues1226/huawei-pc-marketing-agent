@@ -1,0 +1,45 @@
+# Credentials
+.env
+.env.*
+!.env.example
+secrets/
+credentials/
+*.pem
+*.key
+
+# Private source materials and runtime data
+data/
+knowledge/
+materials/
+private/
+artifacts/
+recordings/
+logs/
+*.zip
+*.pdf
+*.mp4
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# JavaScript
+node_modules/
+.next/
+dist/
+build/
+coverage/
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.tmp
