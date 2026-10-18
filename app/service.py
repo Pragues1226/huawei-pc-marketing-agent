@@ -1,11 +1,11 @@
 """UI-facing operations. Only explicit connection/search actions call ima."""
 
 from copy import deepcopy
-import os
-import re
 import threading
 
 from agent.demo import development_fixture
+from agent.model import LLMClient
+from agent.pipeline import run_live, verify_article
 from agent.platforms import platform_policy
 from agent.preflight import prepare_task, review_structure
 from ima.client import ImaClient, ImaError, normalize_base
@@ -84,8 +84,9 @@ def demo_result(task):
 
 
 class WorkbenchService:
-    def __init__(self, client_factory=ImaClient):
+    def __init__(self, client_factory=ImaClient, model_factory=LLMClient):
         self.client_factory = client_factory
+        self.model_factory = model_factory
         self.lock = threading.Lock()
         self.connection = {"status": "not_checked", "knowledge_base": DEFAULT_KB, "note": "尚未验证共享知识库连接"}
         self.knowledge = ImaKnowledge(client_factory, self.find_base)
@@ -93,7 +94,14 @@ class WorkbenchService:
     def status(self):
         with self.lock:
             connection = deepcopy(self.connection)
-        return {"ima": self.client_factory().diagnose(), "connection": connection, "model_configured": bool(os.environ.get("LLM_API_KEY") and os.environ.get("LLM_MODEL")), "live_generation_available": False}
+        model = self.model_factory().diagnose()
+        return {"ima": self.client_factory().diagnose(), "connection": connection, "model": model, "model_configured": model["ready"], "live_generation_available": model["ready"]}
+
+    def generate(self, task, context):
+        return run_live(task, context, self.model_factory())
+
+    def verify(self, task, evidence, article):
+        return verify_article(task, evidence, article, self.model_factory())
 
     def record_access(self, name):
         with self.lock:

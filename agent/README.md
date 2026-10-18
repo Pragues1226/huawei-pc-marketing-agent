@@ -2,8 +2,8 @@
 
 在此实现需求解析、场景和平台策略、生成、核验与修改流程；提示词放 prompts/。
 
-计划输入 task，调用 ima 模块取得原始资料，提取事实后生成并核验 result。结构见 ../contracts/agent.schema.json；语义见 ../docs/interfaces.md。完整生成流程仍待实现。
+输入 task 与 ima 原始调用包后，pipeline.py 依次完成带原文引句的事实提取、场景与平台策略、图文生成、结构检查和独立语义核验。model.py 使用兼容 OpenAI Chat Completions 的 JSON 响应接口。
 
-已有可复用前置工具：platforms.py 为三平台策略，preflight.py 为输入和引用完整性检查。运行 python -m agent demo 可查看纯虚构开发演示。review_structure 不输出 ready，也未实现原文语义核验。
+platforms.py 提供三平台规则，preflight.py 负责输入、引用和高风险词的确定性检查。pipeline.py 只有在原文引句、当前型号图片数量、模型语义核验全部通过后才返回 ready；任何检索警告、证据不足或核验缺项都会阻止交付。
 
-首个里程碑仍是：接真实检索与模型，完成一次有依据的生成。详见 ../docs/preflight.md。
+下一步是在参赛账号上完成 T01 的一次真实运行，检查模型返回、事实引句、图片型号和导出稿，再扩展到其余平台。详见 ../docs/acceptance.md。

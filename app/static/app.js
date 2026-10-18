@@ -61,10 +61,10 @@ function selectPlatform(platform) {
 function selectMode(mode) {
   state.mode = mode;
   $$("[data-mode]").forEach(button => button.classList.toggle("selected", button.dataset.mode === mode));
-  $("#mode-note").textContent = mode === "demo" ? "◈ 当前使用规则示例，不调用模型或真实产品资料。" : "⌘ 直接检索 ima，可浏览目录、打开原文和图片，选择资料供后续调用。";
+  $("#mode-note").textContent = mode === "demo" ? "◈ 当前使用规则示例，不调用模型或真实产品资料。" : "⌘ 先从 ima 选择当前型号的原文和图片，再生成并核验图文。";
   $("#browse-library").hidden = mode !== "live";
   $("#generate-label").textContent = mode === "demo" ? "生成演示预览" : "搜索 ima 资料";
-  $("#form-footnote").textContent = mode === "demo" ? "演示稿包含占位内容，需要接入 ima 与模型后才能正式生成。" : "原文与图片实时读取；来源、型号和适用条件仍需分别核实。";
+  $("#form-footnote").textContent = mode === "demo" ? "演示稿包含占位内容，需要接入 ima 与模型后才能正式生成。" : "至少选择一份原文，并按平台准备足够的当前型号图片。";
   $("#form-message").hidden = true;
 }
 
@@ -129,17 +129,27 @@ function renderBody(text) {
 
 function renderArticle() {
   const {task, article} = state.current;
-  $("#preview-platform").textContent = platformNames[task.platform] + " · 演示草稿";
+  const live = state.current.mode === "live";
+  $("#preview-platform").textContent = platformNames[task.platform] + (live ? " · 已核验草稿" : " · 演示草稿");
+  $("#article-mode").textContent = live ? "ima 依据 · 模型生成 · 发布前人工终审" : "工作台演示 · 非真实体验";
   $("#cover-audience").textContent = task.audience + " · 需求先行";
   $("#article-title").textContent = article.title;
   $("#article-lead").textContent = article.lead;
   $("#article-lead").hidden = !article.lead;
   $("#article-cta").textContent = article.cta;
-  $("#article-image-count").textContent = article.image_plan.length + " 张构图示意";
+  $("#article-image-count").textContent = article.image_plan.length + (live ? " 张 ima 配图" : " 张构图示意");
+  const firstPlan = article.image_plan[0];
+  const firstImage = live && firstPlan ? state.current.evidence.images.find(image => image.image_id === firstPlan.image_id) : null;
+  $("#cover-image").src = firstImage?.asset_ref || "/static/illustration.svg";
+  $("#cover-image").alt = firstImage ? firstImage.caption : "通用电脑构图示意，不代表实际产品";
+  $("#cover-note").textContent = live ? "图片来自本次 ima 检索" : "构图示意 · 待替换 ima 图片";
+  $("#cover-label").textContent = live ? "IMA SOURCE" : "DEMO ONLY";
   renderBody(article.body);
   $("#article-tags").replaceChildren(...article.tags.map(tag => element("span", "", "#" + tag.replace(/^#/, ""))));
   $("#article-images").replaceChildren(...article.image_plan.slice(1).map((image, index) => {
     const card = element("div", "mini-image");
+    const source = live ? state.current.evidence.images.find(item => item.image_id === image.image_id) : null;
+    if (source) { const preview = element("img"); preview.src = source.asset_ref; preview.alt = image.caption; card.append(preview); }
     card.append(element("b", "", "配图 " + (index + 2)), element("span", "", image.caption));
     return card;
   }));
@@ -168,23 +178,27 @@ function renderStrategy() {
     const card = element("div", "detail-card");
     card.append(element("small", "", label), element("p", "", value)); grid.append(card);
   }
-  $("#strategy-tab").replaceChildren(...detailHeader("先确定切入点，再决定怎么说。", "当前策略由场景规则组织；产品卖点需要在真实资料检索后才能确定。"), element("div", "strategy-hero", strategy.angle), grid, sectionList("内容优先级", strategy.priorities), sectionList("平台结构", strategy.platform.structure), sectionList("生成前值得确认", strategy.questions));
+  const live = state.current.mode === "live";
+  $("#strategy-tab").replaceChildren(...detailHeader("先确定切入点，再决定怎么说。", live ? "策略结合任务和本次 ima 证据生成。" : "当前策略由场景规则组织；产品卖点需要在真实资料检索后才能确定。"), element("div", "strategy-hero", strategy.angle), grid, sectionList("内容优先级", strategy.priorities), sectionList("平台结构", strategy.platform.structure), sectionList(live ? "仍建议人工确认" : "生成前值得确认", strategy.questions));
 }
 
 function renderEvidence() {
   const container = $("#evidence-tab");
-  container.replaceChildren(...detailHeader("每一条产品声明，都需要依据。", "当前为开发占位，没有从 ima 提取产品事实。请勿把下列内容当成真实资料。"));
+  const live = state.current.mode === "live";
+  container.replaceChildren(...detailHeader("每一条产品声明，都需要依据。", live ? "事实来自本次 ima 原文，并保留来源关系。" : "当前为开发占位，没有从 ima 提取产品事实。请勿把下列内容当成真实资料。"));
   for (const source of state.current.evidence.sources) {
     const card = element("div", "source-card");
-    card.append(element("div", "source-label", "开发占位 · 非 ima 来源"), element("strong", "", source.title), element("p", "", "接入原文后，这里展示资料标题、事实与适用条件。")); container.append(card);
+    const related = live ? state.current.evidence.facts.filter(fact => fact.source_ids.includes(source.source_id)).map(fact => fact.statement) : [];
+    card.append(element("div", "source-label " + (live ? "real" : ""), live ? "ima 来源" : "开发占位 · 非 ima 来源"), element("strong", "", source.title), element("p", "", related.length ? related.join("；") : "图片来源或未提取出可用产品事实。")); container.append(card);
   }
-  container.append(sectionList("配图方案 · 全部待替换", state.current.article.image_plan.map(image => image.position + "：" + image.caption + "；" + image.reason)));
+  container.append(sectionList(live ? "ima 配图方案" : "配图方案 · 全部待替换", state.current.article.image_plan.map(image => image.position + "：" + image.caption + "；" + image.reason)));
 }
 
 function renderReview() {
   const report = state.current.review;
   const container = $("#review-tab");
-  container.replaceChildren(...detailHeader(report.status === "blocked" ? "发现需要处理的问题" : "结构已检查，内容仍需复核。", "结构通过不等于事实准确或可以发布。来源真实性、正文语义及图片画面需要独立确认。"));
+  const live = state.current.mode === "live";
+  container.replaceChildren(...detailHeader(report.status === "blocked" ? "发现需要处理的问题" : live ? "自动核验通过，等待人工终审。" : "结构已检查，内容仍需复核。", live ? "已检查事实引用、型号路径、图片数量、平台结构与营销表达；发布前仍需人工阅读原文和图片。" : "结构通过不等于事实准确或可以发布。来源真实性、正文语义及图片画面需要独立确认。"));
   const names = {fact: "事实与来源", image: "图片与型号", compliance: "营销表达", platform: "平台与结构"};
   for (const check of report.checks) {
     const card = element("div", "check-card " + check.status);
@@ -203,10 +217,26 @@ function renderResult(result, save = true) {
   $("#search-content").hidden = true;
   $("#result-content").hidden = false;
   $("#edit-panel").hidden = true;
-  $("#result-state").textContent = "演示 · 待复核";
+  const live = result.mode === "live";
+  $("#result-state").textContent = live ? "真实生成 · 自动核验通过" : "演示 · 待复核";
+  $("#demo-banner").hidden = live;
+  $("#copy-article").disabled = live && result.status !== "ready";
+  $("#export-md").disabled = live && result.status !== "ready";
   renderArticle(); renderStrategy(); renderEvidence(); renderReview(); showTab("preview");
   $$(".workflow-step").forEach((node, index) => node.classList.toggle("current", index === 3));
-  if (save) saveHistory(result);
+  if (save && !live) saveHistory(result);
+}
+
+function renderBlocked(result) {
+  state.current = null;
+  $("#empty-state").hidden = true; $("#result-content").hidden = true; $("#search-content").hidden = false;
+  $("#result-state").textContent = "已拦截 · 需要补充";
+  const container = $("#search-content");
+  container.replaceChildren(...detailHeader("当前不能生成可交付稿", "系统没有把证据不足或核验未通过的内容作为成稿输出。"));
+  const back = element("button", "button secondary", "← 返回已选资料"); back.addEventListener("click", () => showRetrieved(retrievalContext)); container.append(back);
+  for (const check of result.verification || result.review?.checks || []) {
+    const card = element("div", "check-card " + check.status); card.append(element("span", "check-icon", check.status === "fail" ? "×" : "!"), element("p", "", check.detail)); container.append(card);
+  }
 }
 
 function renderSearch(result, append = false) {
@@ -342,8 +372,15 @@ function showRetrieved(result) {
   container.replaceChildren(...detailHeader("已读取的知识库内容", result.note));
   const toolbar = element("div", "knowledge-toolbar");
   const back = element("button", "button secondary", "← 返回检索结果"); back.addEventListener("click", () => { if (listingState) renderSearch(listingState); else browseDirectory(); });
-  const copy = element("button", "button primary", "复制调用结果"); copy.addEventListener("click", async () => { try { await navigator.clipboard.writeText(JSON.stringify(retrievalContext, null, 2)); toast("已复制真实检索内容与来源，可供后续模块调用"); } catch { toast("浏览器未允许复制"); } });
-  toolbar.append(back, copy); container.append(toolbar);
+  const copy = element("button", "button secondary", "复制调用结果"); copy.addEventListener("click", async () => { try { await navigator.clipboard.writeText(JSON.stringify(retrievalContext, null, 2)); toast("已复制真实检索内容与来源，可供后续模块调用"); } catch { toast("浏览器未允许复制"); } });
+  const create = element("button", "button primary", "生成并核验图文 →");
+  create.disabled = !result.documents.length;
+  create.addEventListener("click", () => withBusy(create, async () => {
+    const generated = await api("/api/generate", {task: taskFromForm(), context: retrievalContext});
+    if (!generated.article) { renderBlocked(generated); toast("证据不足或核验未通过，已停止交付"); return; }
+    renderResult(generated); toast("真实图文已生成并完成自动核验");
+  }));
+  toolbar.append(back, copy, create); container.append(toolbar);
   container.append(element("div", "search-notice", "已读取 " + result.documents.length + " 份原文、" + result.images.length + " 张图片。内容仅在本机显示，不保存到代码仓库。"));
   for (const warning of result.warnings) container.append(element("p", "retrieval-warning", warning));
   for (const content of [...result.documents, ...result.images]) {
@@ -380,7 +417,8 @@ async function generate() {
 
 function articleMarkdown() {
   const {task, article, evidence, review} = state.current;
-  return ["> 开发演示 · 未调用大模型 · 事实和图片为占位 · 不可作为正式发布稿或参赛运行证明", "", "# " + article.title, "", "平台：" + platformNames[task.platform] + "；目标人群：" + task.audience, "型号：" + task.product, "场景：" + task.scenario, "", article.lead, "", article.body, "", article.cta, "", article.tags.map(tag => "#" + tag).join(" "), "", "## 配图方案（待替换 ima 真实图片）", ...article.image_plan.map((image, index) => `${index + 1}. ${image.position}：${image.caption}。${image.reason}`), "", "## 来源状态", ...evidence.sources.map(source => "- " + source.title), "", "## 核验结果", ...review.checks.map(check => "- [" + {pass: "结构通过", pending: "待复核", fail: "需处理"}[check.status] + "] " + check.detail)].join("\n");
+  const live = state.current.mode === "live";
+  return [live ? "> ima 依据 · 模型生成 · 自动核验通过 · 发布前请人工终审" : "> 开发演示 · 未调用大模型 · 事实和图片为占位 · 不可作为正式发布稿或参赛运行证明", "", "# " + article.title, "", "平台：" + platformNames[task.platform] + "；目标人群：" + task.audience, "型号：" + task.product, "场景：" + task.scenario, "", article.lead, "", article.body, "", article.cta, "", article.tags.map(tag => "#" + tag).join(" "), "", "## 配图方案", ...article.image_plan.map((image, index) => `${index + 1}. ${image.position}：${image.caption}。${image.reason}`), "", "## 知识库依据", ...evidence.sources.map(source => "- " + source.title), ...evidence.facts.map(fact => "- " + fact.statement + "（" + fact.source_ids.join("、") + "）"), "", "## 核验结果", ...review.checks.map(check => "- [" + {pass: "通过", pending: "待确认", fail: "未通过"}[check.status] + "] " + check.detail)].join("\n");
 }
 
 async function copyArticle() {
@@ -396,10 +434,10 @@ function exportArticle() {
   const blob = new Blob([articleMarkdown()], {type: "text/markdown;charset=utf-8"});
   const url = URL.createObjectURL(blob);
   const link = element("a"); link.href = url;
-  link.download = "PC内容草稿_演示_" + Date.now() + ".md";
+  link.download = "PC内容草稿_" + (state.current.mode === "live" ? "已核验_" : "演示_") + Date.now() + ".md";
   document.body.append(link); link.click(); link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-  toast("已导出 Markdown，保留演示与待核验标记");
+  toast(state.current.mode === "live" ? "已导出 Markdown，请在发布前人工终审" : "已导出 Markdown，保留演示与待核验标记");
 }
 
 function startEdit() {
@@ -418,11 +456,12 @@ async function saveEdit() {
     article.title = $("#edit-title").value.trim();
     article.body = $("#edit-body").value.trim();
     article.cta = $("#edit-cta").value.trim();
-    const review = await api("/api/review", {task: state.current.task, evidence: state.current.evidence, article});
-    const updated = {...state.current, article, review};
+    const path = state.current.mode === "live" ? "/api/verify" : "/api/review";
+    const review = await api(path, {task: state.current.task, evidence: state.current.evidence, article});
+    const updated = {...state.current, article, review, verification: review.checks, status: review.status};
     renderResult(updated);
     if (review.status === "blocked") showTab("review");
-    toast(review.status === "blocked" ? "修改已保存，请处理核验中发现的问题" : "修改已保存，内容语义仍需复核");
+    toast(review.status === "blocked" ? "修改已保存，但重新核验未通过，复制和导出已停用" : state.current.mode === "live" ? "修改已保存并重新核验" : "修改已保存，内容语义仍需复核");
   });
 }
 
@@ -460,7 +499,7 @@ async function refreshStatus() {
     $("#top-status").textContent = connected ? "ima 共享库已连接" : prerequisites ? "凭证就绪 · 待检查共享库" : "ima 待配置";
     $("#connection-shortcut .dot").classList.toggle("amber", !connected);
     $("#nav-connection").classList.toggle("connected", connected);
-    const rows = [["Node.js 运行环境", status.ima.node_available], ["官方 ima 技能脚本", status.ima.official_script_available], ["Client ID", status.ima.client_id_configured], ["API Key", status.ima.api_key_configured], ["模型配置（未实现生成联调）", status.model_configured]];
+    const rows = [["Node.js 运行环境", status.ima.node_available], ["官方 ima 技能脚本", status.ima.official_script_available], ["Client ID", status.ima.client_id_configured], ["API Key", status.ima.api_key_configured], ["模型 API Key", status.model.api_key_configured], ["模型接口地址", status.model.base_url_configured], ["模型名称", status.model.model_configured]];
     $("#config-checks").replaceChildren(...rows.map(([label, configured]) => {
       const row = element("div", "config-row"); row.append(element("span", "", label), element("span", configured ? "" : "missing", configured ? "已配置" : "待配置")); return row;
     }));

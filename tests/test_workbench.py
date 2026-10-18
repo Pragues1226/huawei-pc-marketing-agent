@@ -26,10 +26,35 @@ class FakeIma:
         return {"mode": "search", "data": {"info_list": [{"title": "产品事实.md", "media_id": "private-media-test-only", "highlight_content": "<em>公开摘要</em>"}]}}
 
 
+class FakeModel:
+    def diagnose(self):
+        return {"api_key_configured": True, "base_url_configured": True, "model_configured": True, "ready": True, "note": "test"}
+
+    def json_task(self, instruction, payload):
+        if "提取本次明确型号" in instruction:
+            return {
+                "scenario_analysis": "大学新生开学携带场景。",
+                "strategy": {"angle": "从课堂到宿舍的移动路线切入。", "priorities": ["携带"], "questions": []},
+                "facts": [{"statement": "产品采用轻量化设计。", "conditions": [], "source_ids": ["source-1"], "quotes": [{"source_id": "source-1", "quote": "轻量化设计"}]}],
+            }
+        if "仅用输入 facts" in instruction:
+            return {
+                "title": "开学带电脑，先看一天怎么用", "lead": "从课堂到宿舍。",
+                "body": "产品采用轻量化设计。", "cta": "可结合课程安排体验。", "tags": ["开学购机"],
+                "used_fact_ids": ["fact-1"],
+                "image_plan": [{"image_id": f"image-{index}", "position": f"第{index}段后", "caption": f"产品图{index}", "reason": "展示当前型号"} for index in range(1, 4)],
+            }
+        return {"checks": [
+            {"category": "fact", "status": "pass", "detail": "声明受原文引句支持。", "evidence_ids": ["fact-1"]},
+            {"category": "compliance", "status": "pass", "detail": "未发现高风险表达。", "evidence_ids": []},
+            {"category": "platform", "status": "pass", "detail": "平台结构符合要求。", "evidence_ids": []},
+        ]}
+
+
 class WorkbenchHttpTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        service = WorkbenchService(client_factory=FakeIma)
+        service = WorkbenchService(client_factory=FakeIma, model_factory=FakeModel)
         service.knowledge.fetcher = lambda info: ("# 本地 HTTP 测试资料\n这不是实际产品信息。".encode(), "text/markdown", "utf-8")
         cls.server = WorkbenchServer(0, service=service)
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
@@ -121,9 +146,25 @@ class WorkbenchHttpTests(unittest.TestCase):
         self.assertNotIn(b"private-media", content)
         self.assertEqual(json.loads(content)["items"][0]["excerpt"], "公开摘要")
 
-    def test_status_does_not_claim_generation_is_implemented(self):
+    def test_status_reports_configured_model(self):
         report = json.loads(self.request("/api/status")[1])
-        self.assertFalse(report["live_generation_available"])
+        self.assertTrue(report["live_generation_available"])
+
+    def test_generate_and_verify_http_endpoints(self):
+        task, _, _ = development_fixture()
+        task.update({"request_id": "http-live", "product": "HUAWEI MateBook 14（鸿蒙版）"})
+        source = {"title": "MateBook 14 鸿蒙版产品资料.md", "path": ["P1", "MateBook 14 鸿蒙版"], "retrieved_at": "2026-10-18T08:00:00+00:00"}
+        context = {
+            "status": "retrieved", "documents": [{"source": source, "text": "产品采用轻量化设计。"}], "warnings": [],
+            "images": [{"source": {**source, "title": f"MateBook 14 鸿蒙版图片{index}.png"}, "asset_url": f"/api/asset/image-{index}"} for index in range(1, 4)],
+        }
+        status, content, _ = self.request("/api/generate", {"task": task, "context": context})
+        result = json.loads(content)
+        self.assertEqual(status, 200)
+        self.assertEqual(result["status"], "ready")
+        status, content, _ = self.request("/api/verify", {"task": task, "evidence": result["evidence"], "article": result["article"]})
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(content)["status"], "ready")
 
     def test_search_read_and_retrieve_form_working_http_chain(self):
         search = json.loads(self.request("/api/search", {"query": "test"})[1])

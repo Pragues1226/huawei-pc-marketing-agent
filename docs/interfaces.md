@@ -6,8 +6,8 @@
 
 1. 页面收集 task，传给 Agent 主流程；ima 模块提供独立的检索与原文读取能力。
 2. Agent 先判断关键信息是否足够，再检索资料；必要时返回 needs_input 和 questions。
-3. 计划将原始资料提取为 retrieval，包含 sources、facts、images、warnings；当前原文调用包见 knowledge-retrieval.md。
-4. Agent 根据事实生成并核验，返回 result；页面显示四部分结果和状态。
+3. Agent 将原始资料提取为 retrieval，包含 sources、带逐字引句的 facts、images、warnings；原文调用包见 knowledge-retrieval.md。
+4. Agent 根据事实生成并核验，返回运行结果；页面显示场景策略、知识库依据、图文软文和核验状态。
 
 正式生成流程按该结构实现；检索模块已有 Python 与 HTTP 调用方式。Agent 不直接读取页面表单内部状态，页面通过 JSON 传递任务。
 
@@ -16,7 +16,7 @@
 - product 要能区分型号、系统与销售版本；不能默默把模糊型号当作确定 SKU。
 - task 允许字段为空，以便真实触发追问；product、audience、scenario、goal 为空时先处理缺失信息。
 - request_id 在本次任务全流程一致；修改后应分配新 ID，避免串用旧型号证据。
-- facts 逐条保存 statement、conditions、source_ids；来源引用必须确实存在于 sources。
+- facts 逐条保存 statement、conditions、source_ids 与原文 quotes；引句必须能在对应原文中逐字找到，来源引用必须确实存在于 sources。
 - source_id 使用本次请求内的标识，不需要在公开输出显示私有知识库 ID。
 - image.asset_ref 是 B 返回的可用引用；不能凭文件名虚构访问地址。临时签名链接不得写入公开示例。
 - images 中的 product 必须匹配本次明确型号。image_plan 只引用当前 images 已有 image_id。
