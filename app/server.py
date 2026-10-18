@@ -3,6 +3,7 @@
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from uuid import uuid4
 from urllib.parse import urlsplit
 
 from agent.preflight import prepare_task, review_structure
@@ -11,6 +12,7 @@ from .service import DEFAULT_KB, WorkbenchService, demo_result
 
 STATIC = Path(__file__).resolve().parent / "static"
 ASSETS = {"/": ("index.html", "text/html; charset=utf-8"), "/static/style.css": ("style.css", "text/css; charset=utf-8"), "/static/app.js": ("app.js", "text/javascript; charset=utf-8"), "/static/illustration.svg": ("illustration.svg", "image/svg+xml")}
+ASSETS["/static/knowledge.css"] = ("knowledge.css", "text/css; charset=utf-8")
 
 
 class WorkbenchServer(ThreadingHTTPServer):
@@ -54,6 +56,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_payload(200, self.server.service.status())
         if path == "/health":
             return self.send_payload(200, {"status": "ok"})
+        if path.startswith("/api/asset/"):
+            try:
+                data, mime = self.server.service.knowledge.asset(path.removeprefix("/api/asset/"))
+                return self.send_payload(200, data, mime)
+            except ImaError as error:
+                return self.send_payload(404, {"error": str(error)})
         if path not in ASSETS:
             return self.send_payload(404, {"error": "页面不存在"})
         filename, mime = ASSETS[path]
@@ -84,17 +92,28 @@ class Handler(BaseHTTPRequestHandler):
                 if not all(key in body for key in ["task", "evidence", "article"]):
                     raise ValueError()
                 result = review_structure(body["task"], body["evidence"], body["article"])
-            elif path in {"/api/probe", "/api/search"}:
+            elif path in {"/api/probe", "/api/search", "/api/browse", "/api/read", "/api/retrieve"}:
                 name = body.get("knowledge_base", DEFAULT_KB)
                 if not isinstance(name, str) or not 1 <= len(name.strip()) <= 200:
                     raise ValueError()
                 if path.endswith("probe"):
                     result = self.server.service.probe(name.strip())
+                elif path.endswith("browse"):
+                    result = self.server.service.knowledge.browse(name.strip(), body.get("folder_ref"), body.get("page_ref"))
+                elif path.endswith("read"):
+                    result = self.server.service.knowledge.read(body.get("ref"), name.strip())
+                elif path.endswith("retrieve"):
+                    request_id = body.get("request_id") or str(uuid4())
+                    if not isinstance(request_id, str) or len(request_id) > 200:
+                        raise ValueError()
+                    result = self.server.service.knowledge.retrieve(body.get("references"), name.strip(), request_id)
                 else:
                     query = body.get("query")
                     if not isinstance(query, str) or not 1 <= len(query.strip()) <= 200:
                         raise ValueError()
-                    result = self.server.service.search(query.strip(), name.strip())
+                    result = self.server.service.search(query.strip(), name.strip(), body.get("page_ref"))
+                if not path.endswith("probe"):
+                    self.server.service.record_access(name.strip())
             else:
                 return self.send_payload(404, {"error": "功能入口不存在"})
             return self.send_payload(200, result)

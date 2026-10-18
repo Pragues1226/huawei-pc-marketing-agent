@@ -6,4 +6,4 @@
 
 已提供 client.py 官方脚本桥接、错误分层、空搜索目录回退与配置自检。运行 python -m ima diagnose 不发请求；安装配置后 python -m ima probe 才会真实查找共享库并浏览目录。
 
-首个里程碑仍是：取得一个精确型号的真实事实和图片并交给 A、C。当前未使用参赛账号实测，不包含官方 Skill 或知识库附件。详见 ../docs/ima-setup.md。
+retrieval.py 已补充真实目录、原文、图片、本机资源预览与资料调用包，并已用参赛账号实际验证具体型号资料与图片。返回的是原始上下文，尚未自动提取或核验产品声明。不包含官方 Skill 或知识库附件。详见 ../docs/knowledge-retrieval.md。

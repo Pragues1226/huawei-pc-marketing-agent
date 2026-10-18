@@ -11,6 +11,7 @@ READ_ONLY_APIS = frozenset({
     "openapi/wiki/v1/get_knowledge_list",
     "openapi/wiki/v1/search_knowledge",
     "openapi/wiki/v1/get_media_info",
+    "openapi/note/v1/get_doc_content",
 })
 
 
@@ -130,6 +131,9 @@ class ImaClient:
 
     def media_info(self, media_id):
         return self.call("openapi/wiki/v1/get_media_info", {"media_id": media_id})
+
+    def note_content(self, note_id):
+        return self.call("openapi/note/v1/get_doc_content", {"note_id": note_id, "target_content_format": 0})
 
     def search_or_browse(self, kb_id, query, folder_id=None, max_pages=5):
         if not isinstance(max_pages, int) or isinstance(max_pages, bool) or max_pages < 1:

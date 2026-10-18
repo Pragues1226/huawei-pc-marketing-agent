@@ -9,6 +9,7 @@ from agent.demo import development_fixture
 from agent.platforms import platform_policy
 from agent.preflight import prepare_task, review_structure
 from ima.client import ImaClient, ImaError, normalize_base
+from ima.retrieval import ImaKnowledge
 
 DEFAULT_KB = "任德耀新建华为PC知识库"
 
@@ -87,11 +88,16 @@ class WorkbenchService:
         self.client_factory = client_factory
         self.lock = threading.Lock()
         self.connection = {"status": "not_checked", "knowledge_base": DEFAULT_KB, "note": "尚未验证共享知识库连接"}
+        self.knowledge = ImaKnowledge(client_factory, self.find_base)
 
     def status(self):
         with self.lock:
             connection = deepcopy(self.connection)
         return {"ima": self.client_factory().diagnose(), "connection": connection, "model_configured": bool(os.environ.get("LLM_API_KEY") and os.environ.get("LLM_MODEL")), "live_generation_available": False}
+
+    def record_access(self, name):
+        with self.lock:
+            self.connection = {"status": "connected", "knowledge_base": name, "note": "已成功访问该共享知识库。"}
 
     def find_base(self, client, name):
         cursor, seen, matches = "", set(), {}
@@ -123,7 +129,7 @@ class WorkbenchService:
             entries = data.get("knowledge_list")
             if not isinstance(entries, list):
                 raise ImaError("response", "目录返回缺少有效条目列表")
-            result = {"status": "connected", "knowledge_base": base["kb_name"], "first_page_entry_count": len(entries), "note": "共享库可访问；尚未验证产品原文与图片。"}
+            result = {"status": "connected", "knowledge_base": base["kb_name"], "first_page_entry_count": len(entries), "note": "共享库可访问，可继续检索、浏览和读取资料。"}
         except ImaError as error:
             result = {"status": "not_connected", "knowledge_base": name, "note": str(error)}
             with self.lock:
@@ -133,14 +139,5 @@ class WorkbenchService:
             self.connection = result
         return result
 
-    def search(self, query, name=DEFAULT_KB):
-        client = self.client_factory()
-        base = self.find_base(client, name)
-        result = client.search_or_browse(base["kb_id"], query)
-        key = "info_list" if result["mode"] == "search" else "knowledge_list"
-        entries = result["data"].get(key)
-        if not isinstance(entries, list):
-            raise ImaError("response", "知识库检索缺少有效条目列表")
-        # Private IDs, media URLs and required headers stay outside browser output.
-        items = [{"title": str(item.get("title") or item.get("name") or "未命名条目")[:200], "excerpt": re.sub(r"<[^>]+>", "", str(item.get("highlight_content") or ""))[:500]} for item in entries[:20] if isinstance(item, dict)]
-        return {"mode": result["mode"], "knowledge_base": base["kb_name"], "items": items, "count": len(items), "note": "找到资料条目；原文、事实与图片仍需核实。" if result["mode"] == "search" else "搜索无命中，已回退到目录；目录条目不等于产品事实。"}
+    def search(self, query, name=DEFAULT_KB, page_ref=None):
+        return self.knowledge.search(query, name, page_ref)

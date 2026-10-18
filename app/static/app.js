@@ -5,6 +5,10 @@ const $$ = (selector) => [...document.querySelectorAll(selector)];
 const platformNames = {xiaohongshu: "小红书", wechat_article: "公众号", wechat_moments: "门店朋友圈"};
 const state = {platform: "xiaohongshu", mode: "demo", current: null, tab: "preview", history: [], status: null};
 const historyKey = "pc-workbench.demo-history.v1";
+const selection = new Map();
+let listingState = null;
+let openResource = null;
+let retrievalContext = null;
 let toastTimer;
 
 function element(tag, className = "", text = "") {
@@ -57,9 +61,10 @@ function selectPlatform(platform) {
 function selectMode(mode) {
   state.mode = mode;
   $$("[data-mode]").forEach(button => button.classList.toggle("selected", button.dataset.mode === mode));
-  $("#mode-note").textContent = mode === "demo" ? "◈ 当前使用规则示例，不调用模型或真实产品资料。" : "⌘ 从指定 ima 共享库搜索条目；尚未自动读取原文或生成软文。";
+  $("#mode-note").textContent = mode === "demo" ? "◈ 当前使用规则示例，不调用模型或真实产品资料。" : "⌘ 直接检索 ima，可浏览目录、打开原文和图片，选择资料供后续调用。";
+  $("#browse-library").hidden = mode !== "live";
   $("#generate-label").textContent = mode === "demo" ? "生成演示预览" : "搜索 ima 资料";
-  $("#form-footnote").textContent = mode === "demo" ? "演示稿包含占位内容，需要接入 ima 与模型后才能正式生成。" : "真实搜索只返回资料条目，不会把目录或搜索摘要当作产品事实。";
+  $("#form-footnote").textContent = mode === "demo" ? "演示稿包含占位内容，需要接入 ima 与模型后才能正式生成。" : "原文与图片实时读取；来源、型号和适用条件仍需分别核实。";
   $("#form-message").hidden = true;
 }
 
@@ -204,23 +209,148 @@ function renderResult(result, save = true) {
   if (save) saveHistory(result);
 }
 
-function renderSearch(result) {
+function renderSearch(result, append = false) {
+  if (append && listingState) result = {...result, items: [...listingState.items, ...result.items]};
+  listingState = result;
   state.current = null;
   $("#empty-state").hidden = true;
   $("#result-content").hidden = true;
   $("#search-content").hidden = false;
   $("#review-count").hidden = true;
   $("#result-state").textContent = "真实检索";
+  $$("[data-tab]").forEach(button => { button.classList.toggle("active", button.dataset.tab === "evidence"); button.setAttribute("aria-selected", String(button.dataset.tab === "evidence")); });
+  $$(".workflow-step").forEach((node, index) => node.classList.toggle("current", index === 2));
   const container = $("#search-content");
-  container.replaceChildren(...detailHeader("来自 ima 的资料条目", result.knowledge_base), element("div", "search-notice", result.note));
-  container.append(element("p", "detail-description", "本次显示 " + result.count + " 个条目。当前只展示标题与搜索摘要，不代表已完成原文和图片核验。"));
-  result.items.forEach(item => {
-    const card = element("div", "source-card");
-    card.append(element("div", "source-label real", result.mode === "search" ? "ima 搜索结果" : "ima 目录条目"), element("strong", "", item.title));
-    if (item.excerpt) card.append(element("p", "", item.excerpt));
-    container.append(card);
+  container.replaceChildren(...detailHeader("直接查阅 ima 知识库", result.knowledge_base));
+  const toolbar = element("div", "knowledge-toolbar");
+  const input = element("input"); input.placeholder = "搜索型号、功能或业务场景"; input.value = result.query || ""; input.maxLength = 200; input.setAttribute("aria-label", "知识库关键词");
+  const searchButton = element("button", "button primary", "搜索");
+  const search = () => withBusy(searchButton, async () => {
+    if (!input.value.trim()) return toast("请输入关键词");
+    renderSearch(await api("/api/search", {query: input.value.trim(), knowledge_base: knowledgeName()}));
   });
-  if (!result.items.length) container.append(element("p", "detail-description", "当前页没有条目，请检查关键词或知识库目录。"));
+  searchButton.addEventListener("click", search);
+  input.addEventListener("keydown", event => { if (event.key === "Enter") { event.preventDefault(); search(); } });
+  const root = element("button", "button secondary", "浏览根目录"); root.addEventListener("click", () => browseDirectory());
+  toolbar.append(input, searchButton, root); container.append(toolbar);
+  const breadcrumbs = element("div", "knowledge-breadcrumbs");
+  for (const crumb of result.breadcrumbs || []) {
+    const button = element("button", "", crumb.title); button.addEventListener("click", () => browseDirectory(crumb.ref)); breadcrumbs.append(button, element("span", "", "/"));
+  }
+  container.append(breadcrumbs, element("div", "search-notice", result.note));
+  const basket = element("div", "knowledge-basket"); basket.id = "knowledge-basket"; container.append(basket); updateBasket();
+  const filters = element("div", "knowledge-filters");
+  const list = element("div", "knowledge-list"); list.id = "knowledge-list";
+  const types = {all: "全部", document: "资料", image: "图片", folder: "文件夹"};
+  function draw(kind = "all") {
+    list.replaceChildren();
+    const items = result.items.filter(item => kind === "all" || item.kind === kind);
+    filters.querySelectorAll("button").forEach(button => button.classList.toggle("selected", button.dataset.filter === kind));
+    for (const item of items) {
+      const card = element("div", "source-card knowledge-card");
+      const content = element("div", "knowledge-card-content");
+      content.append(element("div", "source-label real", {folder: "文件夹", image: "真实图片", document: "原始资料"}[item.kind] || "资料"), element("strong", "", item.title));
+      if (item.excerpt) content.append(element("p", "", item.excerpt));
+      const actions = element("div", "knowledge-card-actions");
+      const open = element("button", "small-button", item.kind === "folder" ? "进入目录 →" : item.kind === "image" ? "查看图片" : "查看原文");
+      open.addEventListener("click", () => item.kind === "folder" ? browseDirectory(item.ref) : readResource(item)); actions.append(open);
+      if (item.kind !== "folder") {
+        const add = element("button", "small-button selection-button", selection.has(item.ref) ? "已选择 ✓" : "选择资料");
+        add.dataset.ref = item.ref;
+        add.addEventListener("click", () => { toggleSelection(item); add.textContent = selection.has(item.ref) ? "已选择 ✓" : "选择资料"; }); actions.append(add);
+      }
+      card.append(content, actions); list.append(card);
+    }
+    if (!items.length) list.append(element("p", "detail-description", "此分类没有条目，请更换分类、关键词或进入目录。"));
+  }
+  for (const [kind, label] of Object.entries(types)) {
+    const count = result.items.filter(item => kind === "all" || item.kind === kind).length;
+    const button = element("button", "", label + " " + count); button.dataset.filter = kind; button.addEventListener("click", () => draw(kind)); filters.append(button);
+  }
+  container.append(filters, list); draw();
+  if (result.next_page_ref) {
+    const more = element("button", "button secondary load-more", "加载下一页");
+    more.addEventListener("click", () => withBusy(more, async () => {
+      const path = result.mode === "search" ? "/api/search" : "/api/browse";
+      renderSearch(await api(path, {knowledge_base: knowledgeName(), query: result.query, page_ref: result.next_page_ref}), true);
+    })); container.append(more);
+  }
+  refreshStatus();
+}
+
+function knowledgeName() { return $("#kb-name").value.trim(); }
+
+async function browseDirectory(reference) {
+  await withBusy($("#browse-library"), async () => {
+    selectMode("live"); changeView("workspace");
+    renderSearch(await api("/api/browse", {knowledge_base: knowledgeName(), folder_ref: reference}));
+  });
+}
+
+function toggleSelection(item) {
+  if (selection.has(item.ref)) selection.delete(item.ref);
+  else {
+    if (selection.size >= 8) return toast("每次最多选择 8 份资料或图片");
+    selection.set(item.ref, item);
+  }
+  updateBasket();
+}
+
+function updateBasket() {
+  $$(".selection-button").forEach(button => { button.textContent = selection.has(button.dataset.ref) ? "已选择 ✓" : "选择资料"; });
+  const basket = $("#knowledge-basket"); if (!basket) return;
+  basket.replaceChildren(element("span", "", "已选 " + selection.size + " / 8 份资料"));
+  const actions = element("div");
+  const clear = element("button", "small-button", "清空"); clear.addEventListener("click", () => { selection.clear(); updateBasket(); if (listingState) renderSearch(listingState); });
+  const read = element("button", "small-button", "读取选中资料 →"); read.disabled = !selection.size;
+  read.addEventListener("click", () => withBusy(read, async () => {
+    const result = await api("/api/retrieve", {knowledge_base: knowledgeName(), references: [...selection.keys()], request_id: crypto.randomUUID()});
+    retrievalContext = result; showRetrieved(result);
+  }));
+  actions.append(clear, read); basket.append(actions);
+}
+
+function resourceMeta(source) {
+  const path = [...(source.path || [])];
+  if (path[0] !== source.knowledge_base) path.unshift(source.knowledge_base);
+  return [...path, source.title].join(" / ") + "\n读取时间：" + new Date(source.retrieved_at).toLocaleString("zh-CN");
+}
+
+function resourceContents(content) {
+  if (content.kind === "image") {
+    const image = element("img", "real-resource-image"); image.src = content.asset_url; image.alt = content.source.title; return image;
+  }
+  return element("pre", "source-original", content.text + (content.truncated ? "\n\n[正文过长，预览已截断]" : ""));
+}
+
+async function readResource(item) {
+  await withBusy($("#browse-library"), async () => {
+    toast(item.kind === "image" ? "正在读取 ima 图片…" : "正在读取 ima 原文…");
+    const content = await api("/api/read", {knowledge_base: knowledgeName(), ref: item.ref});
+    openResource = {item, content};
+    $("#resource-title").textContent = content.source.title;
+    $("#resource-source").textContent = resourceMeta(content.source);
+    $("#resource-body").replaceChildren(resourceContents(content));
+    $("#copy-resource").hidden = content.kind !== "document";
+    $("#select-resource").textContent = selection.has(item.ref) ? "移出资料篮" : "加入资料篮";
+    $("#resource-dialog").showModal();
+  });
+}
+
+function showRetrieved(result) {
+  const container = $("#search-content");
+  container.replaceChildren(...detailHeader("已读取的知识库内容", result.note));
+  const toolbar = element("div", "knowledge-toolbar");
+  const back = element("button", "button secondary", "← 返回检索结果"); back.addEventListener("click", () => { if (listingState) renderSearch(listingState); else browseDirectory(); });
+  const copy = element("button", "button primary", "复制调用结果"); copy.addEventListener("click", async () => { try { await navigator.clipboard.writeText(JSON.stringify(retrievalContext, null, 2)); toast("已复制真实检索内容与来源，可供后续模块调用"); } catch { toast("浏览器未允许复制"); } });
+  toolbar.append(back, copy); container.append(toolbar);
+  container.append(element("div", "search-notice", "已读取 " + result.documents.length + " 份原文、" + result.images.length + " 张图片。内容仅在本机显示，不保存到代码仓库。"));
+  for (const warning of result.warnings) container.append(element("p", "retrieval-warning", warning));
+  for (const content of [...result.documents, ...result.images]) {
+    const details = element("details", "retrieved-item");
+    details.append(element("summary", "", content.source.title), element("p", "resource-source", resourceMeta(content.source)), resourceContents(content));
+    container.append(details);
+  }
 }
 
 async function generate() {
@@ -232,7 +362,7 @@ async function generate() {
       if (!task.product) { $("#form-message").textContent = "请先填写需要检索的具体产品型号。"; $("#form-message").hidden = false; return; }
       const query = task.product.replace(/[（(].*?[）)]/g, "").replace(/^HUAWEI\s+/i, "").trim();
       renderSearch(await api("/api/search", {query, knowledge_base: $("#kb-name").value.trim()}));
-      toast("真实检索已完成；产品原文与图片仍需核验");
+      toast("真实检索已完成，可打开原文和图片");
       return;
     }
     const result = await api("/api/demo", {task});
@@ -344,7 +474,7 @@ async function probeConnection() {
     $("#probe-result").textContent = "正在检查共享库访问权限…";
     try {
       const result = await api("/api/probe", {knowledge_base: $("#kb-name").value.trim()});
-      $("#probe-result").textContent = result.knowledge_base + "：连接成功，首屏目录 " + result.first_page_entry_count + " 个条目。产品资料与图片仍需核验。";
+      $("#probe-result").textContent = result.knowledge_base + "：连接成功，可继续检索、读取原文和图片。";
       $("#probe-result").classList.remove("error");
       toast("共享知识库连接成功");
       await refreshStatus();
@@ -374,4 +504,9 @@ $("#connection-shortcut").addEventListener("click", () => changeView("connection
 $("#refresh-status").addEventListener("click", () => withBusy($("#refresh-status"), refreshStatus));
 $("#probe-connection").addEventListener("click", probeConnection);
 $("#clear-history").addEventListener("click", () => { state.history = []; try { localStorage.removeItem(historyKey); } catch {} $("#history-count").textContent = "0"; renderHistory(); toast("本浏览器中的演示历史已清空"); });
-readHistory(); refreshStatus();
+$("#browse-library").addEventListener("click", () => browseDirectory());
+$("#close-resource").addEventListener("click", () => $("#resource-dialog").close());
+$("#select-resource").addEventListener("click", () => { if (!openResource) return; toggleSelection(openResource.item); $("#select-resource").textContent = selection.has(openResource.item.ref) ? "移出资料篮" : "加入资料篮"; });
+$("#copy-resource").addEventListener("click", async () => { if (!openResource) return; try { await navigator.clipboard.writeText(resourceMeta(openResource.content.source) + "\n\n" + openResource.content.text); toast("已复制原文及来源"); } catch { toast("浏览器未允许复制"); } });
+$("#kb-name").addEventListener("change", () => { selection.clear(); listingState = null; retrievalContext = null; clearResult(); });
+readHistory(); selectMode("live"); refreshStatus();
