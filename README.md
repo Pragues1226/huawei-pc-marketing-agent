@@ -2,7 +2,7 @@
 
 面向华为 PC 营销任务，完成「理解需求 → 制定平台策略 → 检索 ima 事实与图片 → 生成图文 → 核验 → 导出」的自研 Agent。
 
-**当前状态：三人协作启动仓库。接口、分工和验收任务已准备；业务功能尚未实现，不能作为已运行作品提交。**
+**当前状态：已有可运行的前置检查工具、三平台规则和 ima 只读接入层。未接入参赛账号或大模型，尚未完成真实图文生成，不能作为已运行参赛作品提交。**
 
 ## 三人快速开始
 
@@ -60,7 +60,21 @@ docs/                   分工、架构、验收和提交材料
 
 ## 安装与运行
 
-目前未选定应用框架，未提供运行命令。C 在首次合并可运行版本时，必须在此补全：运行环境版本、依赖安装、环境变量配置、启动命令及访问地址。
+前置工具建议使用 Python 3.10 或更高版本；当前验证环境为 Windows / Python 3.13。在仓库根目录运行：
+
+```bash
+python -m pip install -r requirements.txt
+python -m agent demo
+python -m agent prepare --task contracts/task.example.json
+python -m ima diagnose
+python -m unittest discover -s tests -v
+```
+
+demo 仅使用虚构开发数据，未调用 ima 或模型，也不包含真实产品图片。详见 [前置工具及检查边界](docs/preflight.md)。
+
+ima 安装并配置好凭证后，按 [ima 接入步骤](docs/ima-setup.md) 运行 python -m ima probe，真实验证共享库连接。
+
+目前未选定应用框架。C 在首次合并可运行应用时补全实际环境、依赖、页面启动命令、部署步骤及访问地址。
 
 配置字段见 [.env.example](.env.example)。凭证仅在各自本机或部署平台配置，不能提交到仓库。
 
@@ -72,5 +86,7 @@ docs/                   分工、架构、验收和提交材料
 - [验收场景](docs/acceptance.md)
 - [提交检查清单](docs/submission.md)
 - [作品说明书底稿](docs/project-description.md)
+- [前置工具](docs/preflight.md)
+- [ima 安装与接入](docs/ima-setup.md)
 
 本仓库只存放团队自研代码与说明。赛题 PDF、知识库 ZIP、共享库原文、真实凭证和未经授权的素材不随源码公开。
