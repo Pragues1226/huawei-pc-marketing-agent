@@ -59,7 +59,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def host_ok(self):
         hosts = self.headers.get_all("Host", [])
-        return len(hosts) == 1 and hosts[0].lower() in self.server.allowed_hosts
+        if len(hosts) != 1:
+            return False
+        # ModelScope's reverse proxy may forward an internal Host. Public
+        # writes remain protected by the exact browser Origin check below.
+        return bool(self.server.public_origin) or hosts[0].lower() in self.server.allowed_hosts
 
     def send_payload(self, status, payload, content_type="application/json; charset=utf-8"):
         if not isinstance(payload, bytes):
