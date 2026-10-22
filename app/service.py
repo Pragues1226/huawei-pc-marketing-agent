@@ -38,12 +38,63 @@ def scene_strategy(task):
     return {"angle": angle, "priorities": priorities, "questions": questions, "platform": platform_policy(task["platform"])}
 
 
-def demo_result(task):
+def content_angle_options(task):
+    audience, scenario = task["audience"], task["scenario"]
+    return [
+        {
+            "id": "task_list", "name": "需求清单先行", "headline": "先列清单，再看适配",
+            "angle": f"围绕「{scenario}」，先把要完成的核心任务、常用应用和适用条件列清，再用具体型号资料逐项核对。",
+            "lead": "先把要完成的事写下来，再逐项核对应用、系统与适用条件。",
+            "priorities": [f"{audience}要完成的核心任务", "常用应用、系统版本与外设要求", "购买前必须从官方资料确认的条件"],
+            "questions": ["哪些任务必须由这台电脑完成？", "常用应用、系统版本和外设有哪些？"],
+            "action": "把任务清单带到咨询现场，逐项核对具体型号和适用条件。",
+        },
+        {
+            "id": "daily_flow", "name": "一日流程拆解", "headline": "按一天流程拆解",
+            "angle": f"按「开始前—进行中—收尾后」梳理{audience}在「{scenario}」中的使用流程，让内容跟着真实任务顺序展开，不预设产品能力。",
+            "lead": "按「开始前—进行中—收尾后」梳理每一步需要什么。",
+            "priorities": ["开始前：资料、应用与设备准备", "进行中：任务切换与协作方式", "收尾后：文件交付与适用条件"],
+            "questions": ["任务开始前通常要准备什么资料和设备？", "流程中会切换哪些应用或协作方式？"],
+            "action": "按真实流程准备文件、应用和外设，逐步确认是否适合。",
+        },
+        {
+            "id": "experience_task", "name": "真实任务挑战", "headline": "带真实任务去体验",
+            "angle": f"从「{scenario}」中挑一项可现场完成的真实任务，引导读者亲自体验，并把系统、应用和外设等条件列入核对清单。",
+            "lead": "带上自己的资料和常用应用，完成一项能当场核对的任务。",
+            "priorities": ["准备一份自己的资料和常用应用", "现场完成一项实际操作", "记录需要确认的配置、接口或环境"],
+            "questions": ["哪项任务可以带到门店现场演示？", "体验前还需确认哪些配置、接口或环境？"],
+            "action": "带上自己的文件和常用应用，现场完成一项任务；未确认的信息先记下来。",
+        },
+    ]
+
+
+def recommended_angle_id(task):
+    text = task["audience"] + task["scenario"]
+    if any(word in text for word in ["出差", "差旅", "移动办公", "会议", "流程"]):
+        return "daily_flow"
+    if any(word in text for word in ["门店", "到店", "附近", "体验"]):
+        return "experience_task"
+    return "task_list"
+
+
+def demo_result(task, angle_id=None):
     preparation = prepare_task(task)
     if preparation["status"] != "prepared":
         return {"mode": "development_only", "status": preparation["status"], "task": task, "preparation": preparation}
     _, evidence, article = development_fixture()
     strategy = scene_strategy(task)
+    angle_options = content_angle_options(task)
+    angle_id = angle_id or recommended_angle_id(task)
+    selected_angle = next((option for option in angle_options if option["id"] == angle_id), None)
+    if selected_angle is None:
+        raise ValueError("内容切入方向无效")
+    strategy.update({
+        "angle": selected_angle["angle"],
+        "priorities": selected_angle["priorities"],
+        "questions": selected_angle["questions"],
+        "angle_id": selected_angle["id"],
+        "angle_name": selected_angle["name"],
+    })
     policy = strategy["platform"]
     evidence["request_id"] = task["request_id"]
     for entry in [*evidence["facts"], *evidence["images"]]:
@@ -53,26 +104,26 @@ def demo_result(task):
     priorities = strategy["priorities"]
     if task["platform"] == "xiaohongshu":
         article.update(
-            title=f"{task['audience']}选电脑，先把这三件事想清楚",
-            lead=f"围绕「{task['scenario']}」，把需求放在参数前面。",
-            body=f"选购 {task['product']} 前，先写下你希望用电脑完成的任务。\n\n① {priorities[0]}\n把真实应用、版本和使用习惯列出来，避免只看型号名称就做判断。\n\n② {priorities[1]}\n把常用地点、外设和已有设备纳入选择清单。\n\n③ {priorities[2]}\n[待补：从 ima 检索并核实的产品事实、适用条件和图片。]\n\n这份内容只是排版与需求表达示例，尚未确认产品能力。",
-            cta="带着自己的应用和设备清单咨询，确认适用性后再做选择。",
+            title=f"{task['audience']}选电脑：{selected_angle['headline']}",
+            lead=f"围绕「{task['scenario']}」，{selected_angle['lead']}",
+            body=f"选购 {task['product']} 前，先把真实任务放在参数前面。\n\n① {priorities[0]}\n写下具体任务和必须完成的操作，不从未核实的产品能力开始。\n\n② {priorities[1]}\n列出常用应用、版本、地点与外设，再逐项确认适用条件。\n\n③ {priorities[2]}\n[待补：从指定 ima 资料核对的产品事实、适用条件和图片。]\n\n这份规则演示只展示表达方向，尚未确认产品能力。",
+            cta=selected_angle["action"],
             tags=["选购思路", "场景清单", "开发演示"],
         )
     elif task["platform"] == "wechat_article":
         article.update(
-            title=f"从{task['scenario']}出发，重新梳理电脑选择",
-            lead=f"面对{task['audience']}，先理解任务，再整理有依据的选择理由。",
-            body=f"## 01 从实际任务开始\n{strategy['angle']}\n\n## 02 把需求变成核对清单\n- {priorities[0]}\n- {priorities[1]}\n- {priorities[2]}\n\n## 03 再看具体产品是否适合\n本次目标型号为 {task['product']}。\n[待补：指定 ima 资料中的事实、适用范围与限制。]\n\n## 04 用真实体验完成判断\n带着应用、外设与工作流清单进行验证。本文为结构演示，尚未确认任何产品能力。",
-            cta="预约体验前，先说明使用场景和需要验证的应用。",
+            title=f"{selected_angle['headline']}：为{task['audience']}梳理电脑选择",
+            lead=selected_angle["lead"],
+            body=f"## 01 从真实任务开始\n{strategy['angle']}\n\n## 02 按方向整理核对重点\n- {priorities[0]}\n- {priorities[1]}\n- {priorities[2]}\n\n## 03 再看具体产品是否适合\n本次目标型号为 {task['product']}。\n[待补：指定 ima 资料中的事实、适用范围与限制。]\n\n## 04 用真实体验完成判断\n规则演示只提供内容结构，产品能力仍需通过指定资料和实际体验核实。",
+            cta=selected_angle["action"],
             tags=[],
         )
     else:
         article.update(
-            title=f"选电脑，先从{priorities[0]}聊起",
+            title=f"{selected_angle['headline']}｜{task['audience']}",
             lead="",
-            body=f"最近在关注 {task['product']}？\n如果你也有「{task['scenario']}」的需求，可以先把常用应用和设备列出来。\n\n[待补：一个来自 ima、适合本场景且可演示的产品事实。]\n\n开发示例，产品能力与体验安排均待确认。",
-            cta="欢迎先聊聊使用需求，再一起确定需要体验和验证的内容。",
+            body=f"如果你也有「{task['scenario']}」的需求，可以先这样开始：{selected_angle['lead']}\n\n[待补：从指定 ima 资料核对、适合本场景的产品事实。]\n\n开发示例，产品能力与体验安排均待确认。",
+            cta=selected_angle["action"],
             tags=[],
         )
     article["image_plan"] = article["image_plan"][:count]
@@ -83,6 +134,7 @@ def demo_result(task):
         "mode": "development_only", "status": "draft", "notice": "规则演示：未调用大模型；事实与图片均为开发占位，不能作为正式营销稿或参赛运行证明。",
         "task": deepcopy(task), "preparation": preparation, "strategy": strategy,
         "evidence": evidence, "article": article, "review": report,
+        "content_angles": angle_options,
     }
 
 

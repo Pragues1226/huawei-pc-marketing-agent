@@ -14,7 +14,10 @@ from .service import DEFAULT_KB, WorkbenchService, demo_result
 STATIC = Path(__file__).resolve().parent / "static"
 ASSETS = {"/": ("index.html", "text/html; charset=utf-8"), "/static/style.css": ("style.css", "text/css; charset=utf-8"), "/static/app.js": ("app.js", "text/javascript; charset=utf-8"), "/static/illustration.svg": ("illustration.svg", "image/svg+xml")}
 ASSETS["/static/knowledge.css"] = ("knowledge.css", "text/css; charset=utf-8")
+ASSETS["/static/ui-polish.css"] = ("ui-polish.css", "text/css; charset=utf-8")
 ASSETS["/static/live.js"] = ("live.js", "text/javascript; charset=utf-8")
+ASSETS["/static/semifinal.css"] = ("semifinal.css", "text/css; charset=utf-8")
+ASSETS["/static/strategy-map.svg"] = ("strategy-map.svg", "image/svg+xml")
 
 
 class WorkbenchServer(ThreadingHTTPServer):
@@ -89,7 +92,7 @@ class Handler(BaseHTTPRequestHandler):
             if path in {"/api/prepare", "/api/demo"}:
                 if "task" not in body:
                     raise ValueError()
-                result = prepare_task(body["task"]) if path.endswith("prepare") else demo_result(body["task"])
+                result = prepare_task(body["task"]) if path.endswith("prepare") else demo_result(body["task"], body.get("angle_id"))
             elif path == "/api/review":
                 if not all(key in body for key in ["task", "evidence", "article"]):
                     raise ValueError()

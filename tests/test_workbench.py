@@ -53,7 +53,7 @@ class WorkbenchHttpTests(unittest.TestCase):
             return response.status, response.read(), response.headers
 
     def test_page_and_assets_are_served(self):
-        for path in ["/", "/static/style.css", "/static/app.js", "/static/illustration.svg"]:
+        for path in ["/", "/static/style.css", "/static/knowledge.css", "/static/semifinal.css", "/static/ui-polish.css", "/static/app.js", "/static/illustration.svg", "/static/strategy-map.svg"]:
             status, content, headers = self.request(path)
             self.assertEqual(status, 200)
             self.assertTrue(content)

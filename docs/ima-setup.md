@@ -1,14 +1,31 @@
 # ima 安装完成后的最短接入路径
 
-接入层已在本机参赛账号上完成指定共享库访问、型号检索、目录浏览、产品资料原文和真实图片读取。自动测试仍使用模拟外部响应；最终生成和完整语义核验尚未完成。
+接入层已有指定共享库访问、型号检索、目录浏览、产品资料原文和真实图片读取的代码；`agent.pipeline` 也实现了原文事实提取、模型生成、独立声明/图片核验与重写流程。本机当前 `/api/status` 显示 ima 和模型凭证未配置，因此尚未完成当前环境的真实端到端复核。模型核验不能证明完整无误，发布前仍需人工检查。
 
 ## 本机准备
 
 1. 安装并登录 ima；用同一账号加入举办方指定共享库，确认能查看原文。
-2. 在 ima 官方接口页面获取 Client ID 和 API Key，只在自己本机配置，不发到聊天或仓库。
-3. 下载官方 Skill 并完整解压。仓库不重新分发官方包。
-4. 安装 Node.js 18 或更高版本；Python 侧只负责调用脚本和处理结果。
-5. 将根目录 .env.example 复制为 .env，填写凭证，并将 IMA_SKILL_SCRIPT 设置为已解压的 ima_api.cjs 绝对路径。环境中已有值优先于 .env。
+2. 在 [ima 官方接口页](https://ima.qq.com/agent-interface) 创建或查看 Client ID 和 API Key。项目需要这两项才能访问共享库。
+3. 安装 Node.js 18 或更高版本；Python 侧只负责调用脚本和处理结果。
+4. 将根目录 `.env.example` 复制为 `.env`，填入下面的配置。Windows 可在仓库根目录运行 `notepad .env` 编辑；已有的用户级环境变量会优先于 `.env`。
+
+```dotenv
+IMA_OPENAPI_CLIENTID=你的 ima Client ID
+IMA_OPENAPI_APIKEY=你的 ima API Key
+IMA_SKILL_SCRIPT=C:/绝对路径/ima-skill/ima_api.cjs
+LLM_API_KEY=你的模型服务 API Key
+LLM_BASE_URL=https://服务商提供的兼容接口基础地址
+LLM_MODEL=服务商控制台中的模型 ID
+LLM_JSON_MODE=false
+```
+
+本机 `.env` 已写入已安装官方技能包的路径；技能包版本为 1.1.10。若换电脑或官方脚本目录改变，只需更新 `IMA_SKILL_SCRIPT`。ima 密钥和模型密钥都只填在本机 `.env`，不要贴到聊天、截图或提交到 Git。
+
+`LLM_BASE_URL` 应是服务商的 HTTPS OpenAI Chat Completions 兼容地址；程序会在基础地址后拼接 `/chat/completions`。图片核验时会发送图片，因此模型服务还必须支持图像输入。模型 ID 必须与服务商控制台一致。
+
+DeepSeek 官方 API 当前将 V4.1 Flash（1017）映射为模型 ID `deepseek-flash`，OpenAI 兼容基础地址为 `https://api.deepseek.com`；该模型支持视觉输入。DeepSeek 支持 JSON 输出模式，本机配置启用 `LLM_JSON_MODE=true`，以匹配 Agent 的结构化生成和核验响应。参考 [DeepSeek 首次 API 调用](https://api-docs.deepseek.com/guides/search_fetch)、[视觉输入说明](https://api-docs.deepseek.com/guides/vision/) 和 [JSON 输出说明](https://api-docs.deepseek.com/guides/json_mode/)。连接页的“测试图文模型连接”会发送不含任务资料的最小 JSON 探针；只有状态页显示配置齐全后才可运行。
+
+5. 修改 `.env` 后重启工作台，在“知识库连接”页刷新配置状态。先运行 `python -m ima diagnose` 检查凭证是否就绪，再运行 `python -m ima probe` 实际确认共享库权限。
 
 参考入口来自赛题指定渠道：
 
@@ -48,4 +65,4 @@ probe 只显示库名、首屏数量与是否有后续页，不展示私有知�
 
 已补充并实测：产品资料 Markdown 原文、真实图片、本机预览与选中资料调用包。
 
-待完成：从原文提取并核验事实、资料冲突处理、模型生成与完整生成流程联调。接入层只读取本机配置的凭证，不会自行上传或修改共享库。
+待完成：在已配置凭证的环境中完成真实端到端联调，记录资料冲突与模型核验结果，并保留三组复赛运行材料。接入层只读取本机配置的 ima 凭证，不会自行上传或修改共享库；生成流程会将用户选择的原文和图片传给其配置的模型服务。

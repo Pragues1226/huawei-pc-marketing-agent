@@ -173,6 +173,7 @@ class MarketingPipeline:
         if errors:
             raise ModelError("文案结构不完整，未采用该模型响应。字段检查：" + str(errors))
         checks = review_structure(task, context["evidence"], article, semantic_pending=False)["checks"]
+        claim_links = []
         paragraphs = len(re.split(r"\n\n+", article["body"]))
         for index, item in enumerate(article["image_plan"]):
             match = re.fullmatch(r"第(\d+)段后", item["position"])
@@ -189,9 +190,11 @@ class MarketingPipeline:
                     raise ModelError("所选图片合计超过10MB，请减少图片后重试。")
                 visual_inputs.append({"label": image["image_id"] + " · " + image["name"], "url": "data:" + mime + ";base64," + base64.b64encode(data).decode("ascii")})
             report = model.complete(VERIFY, {**context, "article": article, "actual_images_attached": bool(visual_inputs)}, images=visual_inputs)
-            checks.extend(self._review_checks(report, context, article))
+            reviewed_checks, claim_links = self._review_checks(report, context, article)
+            checks.extend(reviewed_checks)
         response = self._response(task, context["evidence"], strategy, analysis, article, checks)
         response["quotes"] = deepcopy(context["quotes"])
+        response["claim_links"] = claim_links
         return response
 
     def _review_checks(self, report, context, article):
@@ -201,13 +204,14 @@ class MarketingPipeline:
         text = "\n".join([article["title"], article["lead"], article["body"], article["cta"], *(p["caption"] for p in article["image_plan"])])
         facts = {f["fact_id"] for f in context["evidence"]["facts"]}
         all_ids = facts | {s["source_id"] for s in context["evidence"]["sources"]} | {i["image_id"] for i in context["evidence"]["images"]}
-        result = []
+        result, claim_links = [], []
         for claim in claims:
             if not isinstance(claim, dict) or not isinstance(claim.get("text"), str) or not claim["text"].strip() or claim["text"] not in text or not isinstance(claim.get("fact_ids"), list) or any(not isinstance(x, str) for x in claim["fact_ids"]) or not set(claim["fact_ids"]).issubset(facts & set(article["used_fact_ids"])) or claim.get("status") not in {"pass", "fail", "pending"} or not isinstance(claim.get("detail"), str):
                 raise ModelError("声明核验的原文定位或事实引用无效，不能采用。")
             if claim["status"] == "pass" and not claim["fact_ids"]:
                 raise ModelError("核验将无依据声明标为通过，已停止交付。")
             result.append(check("fact", claim["status"], "声明「" + claim["text"] + "」：" + claim["detail"], claim["fact_ids"]))
+            claim_links.append({"text": claim["text"], "fact_ids": list(claim["fact_ids"]), "status": claim["status"]})
         for item in checks:
             if validate_shape("check", item) or not item["detail"].strip() or not set(item["evidence_ids"]).issubset(all_ids):
                 raise ModelError("模型核验结果引用无效，不能标为通过。")
@@ -218,7 +222,7 @@ class MarketingPipeline:
         for plan in article["image_plan"]:
             if not any(c["category"] == "image" and plan["image_id"] in c["evidence_ids"] for c in checks):
                 result.append(check("image", "pending", "该图未返回实际画面检查结果。", [plan["image_id"]]))
-        return result
+        return result, claim_links
 
     def revise(self, token, revision=None, edited=None):
         if not self.capacity.acquire(blocking=False):

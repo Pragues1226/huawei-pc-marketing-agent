@@ -24,6 +24,7 @@ class ModelClient:
         self.base = env.get("LLM_BASE_URL", "").strip().rstrip("/")
         self.model = env.get("LLM_MODEL", "").strip()
         self.reasoning_effort = env.get("LLM_REASONING_EFFORT", "").strip()
+        self.json_mode = env.get("LLM_JSON_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
         self.timeout = timeout
         self.opener = opener or urllib.request.build_opener(NoRedirect())
 
@@ -45,6 +46,8 @@ class ModelClient:
         payload = {"model": self.model, "messages": [{"role": "system", "content": system}, {"role": "user", "content": content}]}
         if self.reasoning_effort:
             payload["reasoning_effort"] = self.reasoning_effort
+        if self.json_mode:
+            payload["response_format"] = {"type": "json_object"}
         request = urllib.request.Request(endpoint, data=json.dumps(payload, ensure_ascii=False).encode(), headers={"Authorization": "Bearer " + self.key, "Content-Type": "application/json", "User-Agent": "PCWorkbench/0.3"})
         try:
             with self.opener.open(request, timeout=self.timeout) as response:
