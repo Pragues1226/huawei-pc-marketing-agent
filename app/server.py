@@ -10,11 +10,19 @@ from agent.preflight import prepare_task, review_structure
 from agent.model import ModelError
 from ima.client import ImaError
 from .service import DEFAULT_KB, WorkbenchService, demo_result
+from .guidance import public_guidance
 
 STATIC = Path(__file__).resolve().parent / "static"
 ASSETS = {"/": ("index.html", "text/html; charset=utf-8"), "/static/style.css": ("style.css", "text/css; charset=utf-8"), "/static/app.js": ("app.js", "text/javascript; charset=utf-8"), "/static/illustration.svg": ("illustration.svg", "image/svg+xml")}
 ASSETS["/static/knowledge.css"] = ("knowledge.css", "text/css; charset=utf-8")
 ASSETS["/static/live.js"] = ("live.js", "text/javascript; charset=utf-8")
+ASSETS["/static/portal.js"] = ("portal.js", "text/javascript; charset=utf-8")
+ASSETS["/static/portal.css"] = ("portal.css", "text/css; charset=utf-8")
+ASSETS["/static/studio.css"] = ("studio.css", "text/css; charset=utf-8")
+ASSETS["/static/feature-deck.css"] = ("feature-deck.css", "text/css; charset=utf-8")
+ASSETS["/static/product-stage.js"] = ("product-stage.js", "text/javascript; charset=utf-8")
+ASSETS["/static/product-stage.css"] = ("product-stage.css", "text/css; charset=utf-8")
+ASSETS["/static/feature-deck.js"] = ("feature-deck.js", "text/javascript; charset=utf-8")
 
 
 class WorkbenchServer(ThreadingHTTPServer):
@@ -43,7 +51,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(payload)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
-        self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'")
+        self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https://motionsites.org; font-src 'self' https://motionsites.org; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'")
         self.end_headers()
         try:
             self.wfile.write(payload)
@@ -58,6 +66,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_payload(200, self.server.service.status())
         if path == "/health":
             return self.send_payload(200, {"status": "ok"})
+        if path.startswith("/api/official/asset/"):
+            try:
+                data, mime = self.server.service.official.asset(path.removeprefix("/api/official/asset/"))
+                return self.send_payload(200, data, mime)
+            except ImaError as error:
+                return self.send_payload(404, {"error": str(error)})
         if path.startswith("/api/asset/"):
             try:
                 data, mime = self.server.service.knowledge.asset(path.removeprefix("/api/asset/"))
@@ -96,15 +110,27 @@ class Handler(BaseHTTPRequestHandler):
                 result = review_structure(body["task"], body["evidence"], body["article"])
             elif path == "/api/model/probe":
                 result = self.server.service.model_factory().probe()
+            elif path == "/api/official/prepare":
+                task = body.get("task", {})
+                prepared = prepare_task(task)
+                if prepared["status"] != "prepared":
+                    return self.send_payload(400, {"error": "请先填写完整的创作需求。"})
+                result = self.server.service.official.prepare(task["product"])
+                result["guidance"] = public_guidance(self.server.service.guidance.select(task))
             elif path == "/api/generate":
                 name = body.get("knowledge_base", DEFAULT_KB)
                 if not isinstance(name, str) or not 1 <= len(name.strip()) <= 200 or "task" not in body:
                     raise ValueError()
-                result = self.server.service.pipeline.generate(body["task"], body.get("references"), name.strip())
-                if result.get("article"):
+                if body.get("source") == "official":
+                    task = body["task"]
+                    result = self.server.service.official_pipeline.generate(task, [body.get("product_ref")], task.get("product", "") if isinstance(task, dict) else "")
+                else:
+                    result = self.server.service.pipeline.generate(body["task"], body.get("references"), name.strip())
+                if result.get("article") and body.get("source") != "official":
                     self.server.service.record_access(name.strip())
             elif path == "/api/revise":
-                result = self.server.service.pipeline.revise(body.get("run_ref"), revision=body.get("revision"), edited=body.get("article"))
+                pipeline = self.server.service.official_pipeline if body.get("source") == "official" else self.server.service.pipeline
+                result = pipeline.revise(body.get("run_ref"), revision=body.get("revision"), edited=body.get("article"))
             elif path in {"/api/probe", "/api/search", "/api/browse", "/api/read", "/api/retrieve"}:
                 name = body.get("knowledge_base", DEFAULT_KB)
                 if not isinstance(name, str) or not 1 <= len(name.strip()) <= 200:

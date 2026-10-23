@@ -35,3 +35,16 @@
 | error | 显示可理解的错误与重试入口，不暴露凭证和原始敏感响应 |
 
 页面将 scenario_analysis 显示为「场景判断」，evidence 为「知识库依据」，article 为「图文软文」，verification 为「核验结果」。strategy 可作为展开项展示。
+
+
+## 官网与本地指导扩展
+
+见 [官网与本地创作指导](official-guidance.md)。本次用户明确授权官网产品来源及本地 v7 写作指导；与原 ima 路径分别标注，不互相冒充。
+
+- `POST /api/official/prepare`：输入 `{task}`，返回 `product_ref`、确认的完整型号、官网 URL、`intro`、`original_text`、`retrieved_at`、图片候选与本次指导文档标题。缺少需求时返回 400。型号必须来自服务端支持的明确型号，不能提交任意网页地址。
+- `GET /api/official/asset/<ref>`：仅返回本次官网读取成功、检查过图片签名的内存图片；不接受远程 URL 或本地路径。
+- `POST /api/generate`：官网模式添加 `source: "official"` 和 `product_ref`；服务端重新核对 task.product 与该引用绑定的型号。ima/原本地压缩包模式继续使用 references。
+- `POST /api/revise`：官网稿件传 `source: "official"` 与服务器签发的 `run_ref`；从该次服务端记录恢复原始事实和指导，不能用客户端自带证据替换。
+- `/api/status` 新增 `guidance` 配置状态与 `official_products` 支持的型号名称；不返回指导目录绝对路径、全文或凭证。
+
+正式 result/evidence 契约不变。sources 中的可选 url 保存官网来源，response.data_source.mode 为 official；writing_guidance 进入模型上下文但不冒充 evidence.facts，响应只暴露指导标题。原文仍按片段 ID 提取和回填引文，独立核验仍需实际图片输入。
