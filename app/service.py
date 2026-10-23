@@ -13,8 +13,6 @@ from agent.pipeline import MarketingPipeline
 from ima.client import ImaClient, ImaError, normalize_base
 from ima.retrieval import ImaKnowledge
 from ima.local import LocalKnowledge
-from .official import OfficialKnowledge, PRODUCTS
-from .guidance import LocalGuidance, public_guidance
 
 DEFAULT_KB = "任德耀新建华为PC知识库"
 
@@ -95,17 +93,14 @@ class WorkbenchService:
         self.connection = {"status": "not_checked", "knowledge_base": DEFAULT_KB, "note": "尚未验证共享知识库连接"}
         self.knowledge = LocalKnowledge(os.environ["LOCAL_KNOWLEDGE_ZIP"]) if os.environ.get("KNOWLEDGE_SOURCE") == "local" else ImaKnowledge(client_factory, self.find_base)
         self.model_factory = model_factory
-        self.guidance = LocalGuidance(os.environ.get("GUIDANCE_ROOT"))
-        self.official = OfficialKnowledge()
-        self.pipeline = MarketingPipeline(self.knowledge, scene_strategy, model_factory, self.guidance)
-        self.official_pipeline = MarketingPipeline(self.official, scene_strategy, model_factory, self.guidance)
+        self.pipeline = MarketingPipeline(self.knowledge, scene_strategy, model_factory)
 
     def status(self):
         with self.lock:
             connection = deepcopy(self.connection)
         model = self.model_factory().diagnose()
         source = self.knowledge.describe() if isinstance(self.knowledge, LocalKnowledge) else {"mode": "ima", "label": "ima 共享知识库"}
-        return {"ima": self.client_factory().diagnose(), "connection": connection, "model": model, "data_source": source, "model_configured": model["configured"], "live_generation_available": model["configured"], "guidance": self.guidance.describe(), "official_products": [name for name, _ in PRODUCTS]}
+        return {"ima": self.client_factory().diagnose(), "connection": connection, "model": model, "data_source": source, "model_configured": model["configured"], "live_generation_available": model["configured"]}
 
     def record_access(self, name):
         with self.lock:
