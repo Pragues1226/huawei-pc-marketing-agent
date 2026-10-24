@@ -12,6 +12,9 @@ class Proxy(BaseHTTPRequestHandler):
             self.send_error(413,'Payload too large');return
         body=self.rfile.read(size) if size else None
         headers={k:v for k,v in self.headers.items() if k.lower() not in ('host','connection','content-length','accept-encoding','transfer-encoding')}
+        # Mark proxy traffic so first-time administrator setup cannot be taken over remotely.
+        headers={k:v for k,v in headers.items() if k.lower() != 'x-workbench-proxy'}
+        headers['X-Workbench-Proxy']='1'
         headers['Accept-Encoding']='identity'
         if body is not None:headers['Content-Length']=str(len(body))
         conn=HTTPConnection('127.0.0.1',UPSTREAM_PORT,timeout=600)

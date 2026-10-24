@@ -43,3 +43,8 @@ coverage/
 Thumbs.db
 Desktop.ini
 *.tmp
+
+# Local publication and design tooling
+.upload-staging/
+.impeccable/
+.taste-skill/

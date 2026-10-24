@@ -113,11 +113,16 @@ class PipelineTests(unittest.TestCase):
 
     def test_verifier_cannot_cite_unknown_fact(self):
         self.model.report["claims"][0]["fact_ids"] = ["F99"]
-        with self.assertRaisesRegex(ModelError, "引用无效"): self.run_task()
+        result = self.run_task()
+        self.assertEqual(result['status'],'blocked')
+        self.assertIsNone(result['result']['article'])
+        self.assertTrue(any('引用无效' in c['detail'] and c['status']=='pending' for c in result['review']['checks']))
 
     def test_verifier_cannot_pass_a_claim_without_evidence(self):
         self.model.report["claims"][0]["fact_ids"] = []
-        with self.assertRaisesRegex(ModelError, "无依据"): self.run_task()
+        result = self.run_task()
+        self.assertEqual(result['status'],'blocked')
+        self.assertTrue(any('无依据' in c['detail'] and c['status']=='pending' for c in result['review']['checks']))
 
     def test_absolute_claim_blocked_before_semantic_verification(self):
         self.model.article["body"] += "全网第一"
@@ -130,7 +135,9 @@ class PipelineTests(unittest.TestCase):
         second = self.pipeline.revise(first["run_ref"], "语气更自然")
         self.assertNotEqual(first["task"]["request_id"], second["task"]["request_id"])
         self.assertEqual(second["task"]["request_id"], second["evidence"]["request_id"])
-        self.assertEqual(self.model.calls[3]["data"]["documents"][0]["text"], STATEMENT)
+        self.assertEqual(self.model.calls[3]["data"]["quotes"][0]["quote"], STATEMENT)
+        self.assertNotIn('documents',self.model.calls[3]['data'])
+        self.assertEqual(self.model.calls[4]['data']['documents'][0]['text'],STATEMENT)
         self.assertEqual(self.model.calls[3]["data"]["task"]["revision"], "语气更自然")
 
     def test_manual_edit_invalidates_previous_verification(self):
@@ -160,7 +167,7 @@ class ModelTransportTests(unittest.TestCase):
 
     def test_no_default_destination_or_network_when_config_missing(self):
         opener = FakeOpener(b"")
-        with self.assertRaisesRegex(ModelError, "配置不完整"): ModelClient(env={}, opener=opener).complete("test", {})
+        with self.assertRaisesRegex(ModelError, "文案.*连接设置"): ModelClient(env={}, opener=opener).complete("test", {})
         self.assertIsNone(opener.request)
 
     def test_secure_destination_and_json_shape(self):

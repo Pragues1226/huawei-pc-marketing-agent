@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>启动华为 PC 内容工作台</title>
+  <style>
+    :root { color-scheme: light; color: #1e3538; background: #f4f3ef; font-family: "Segoe UI Variable", "Microsoft YaHei UI", "PingFang SC", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100svh; display: grid; align-items: center; padding: 40px 20px; }
+    main { width: min(100%, 640px); margin: auto; }
+    h1 { font-family: Georgia, "Noto Serif SC", "Songti SC", SimSun, serif; font-size: clamp(26px, 5vw, 36px); font-weight: 500; line-height: 1.3; margin: 0 0 20px; }
+    p, li { font-size: 16px; line-height: 1.8; }
+    p { margin: 0 0 24px; color: #647674; }
+    ol { margin: 32px 0; padding-left: 24px; }
+    li { padding-left: 8px; margin-bottom: 20px; }
+    strong { color: #215e5c; white-space: nowrap; }
+    code { display: inline-block; border: 1px solid #e2e5de; border-radius: 9px; background: #fffefa; padding: 3px 10px; color: #215e5c; font: inherit; font-weight: 600; overflow-wrap: anywhere; }
+    .note { border-top: 1px solid #e2e5de; padding-top: 20px; margin-bottom: 0; font-size: 13px; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>先启动工作台，再开始创作。</h1>
+    <p>你刚才打开的是页面源码。完整界面、图片和创作功能需要通过本机服务访问。</p>
+    <ol>
+      <li>在项目根目录双击<br><code>启动工作台.cmd</code></li>
+      <li>浏览器打开封面后，点击<strong>开始创作</strong></li>
+    </ol>
+    <p>请保留启动窗口；如果浏览器没有自动打开，访问该窗口显示的网址。按 Ctrl+C 或关闭启动窗口可停止服务。</p>
+    <p class="note">需要 Python 3.10 或更高版本。首次缺少依赖时，启动程序会联网安装到项目的 .venv 中。未配置 ima 和模型凭证时，也能打开封面及规则演示；真实创作需要另行配置。</p>
+  </main>
+</body>
+</html>

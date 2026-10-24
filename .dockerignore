@@ -16,3 +16,8 @@ outputs
 knowledge
 knowledge-base
 secrets
+private
+artifacts
+logs
+recordings
+.upload-staging

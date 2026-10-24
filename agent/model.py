@@ -24,6 +24,8 @@ class ModelClient:
         self.base = env.get("LLM_BASE_URL", "").strip().rstrip("/")
         self.model = env.get("LLM_MODEL", "").strip()
         self.reasoning_effort = env.get("LLM_REASONING_EFFORT", "").strip()
+        self.json_mode = env.get("LLM_JSON_MODE") == "true"
+        self.enable_thinking = env.get("LLM_ENABLE_THINKING", "")
         self.timeout = timeout
         self.opener = opener or urllib.request.build_opener(NoRedirect())
 
@@ -32,7 +34,7 @@ class ModelClient:
 
     def complete(self, system, data, images=None):
         if not self.diagnose()["configured"]:
-            raise ModelError("模型配置不完整，请填写本机 .env 的密钥、接口地址和模型名。")
+            raise ModelError("文案与图片核验模型尚未配置，请管理员在「连接设置」中完成配置。")
         parsed = urlsplit(self.base)
         if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
             raise ModelError("模型接口必须是无凭证、无查询参数的 HTTPS 地址。")
@@ -45,6 +47,10 @@ class ModelClient:
         payload = {"model": self.model, "messages": [{"role": "system", "content": system}, {"role": "user", "content": content}]}
         if self.reasoning_effort:
             payload["reasoning_effort"] = self.reasoning_effort
+        if self.json_mode:
+            payload["response_format"] = {"type": "json_object"}
+        if self.enable_thinking in {"true", "false"}:
+            payload["enable_thinking"] = self.enable_thinking == "true"
         request = urllib.request.Request(endpoint, data=json.dumps(payload, ensure_ascii=False).encode(), headers={"Authorization": "Bearer " + self.key, "Content-Type": "application/json", "User-Agent": "PCWorkbench/0.3"})
         try:
             with self.opener.open(request, timeout=self.timeout) as response:

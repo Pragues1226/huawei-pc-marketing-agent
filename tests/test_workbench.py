@@ -1,4 +1,6 @@
 import json
+from pathlib import Path
+import tempfile
 import threading
 import unittest
 import urllib.error
@@ -6,6 +8,7 @@ import urllib.request
 
 from agent.demo import development_fixture
 from app.server import WorkbenchServer
+from app.image_studio import ImageStudio
 from app.service import WorkbenchService, demo_result
 
 
@@ -29,9 +32,11 @@ class FakeIma:
 class WorkbenchHttpTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        cls.settings_dir = tempfile.TemporaryDirectory(dir=Path.cwd())
+        cls.addClassCleanup(cls.settings_dir.cleanup)
         service = WorkbenchService(client_factory=FakeIma)
         service.knowledge.fetcher = lambda info: ("# 本地 HTTP 测试资料\n这不是实际产品信息。".encode(), "text/markdown", "utf-8")
-        cls.server = WorkbenchServer(0, service=service)
+        cls.server = WorkbenchServer(0, service=service, image_studio=ImageStudio(cls.settings_dir.name, env={}))
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
         cls.thread.start()
         cls.base = f"http://127.0.0.1:{cls.server.server_port}"

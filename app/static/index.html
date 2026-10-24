@@ -5,13 +5,52 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="light">
   <title>华为 PC · 内容工作台</title>
+  <script src="launch-guard.js"></script>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/static/style.css">
   <link rel="stylesheet" href="/static/knowledge.css">
   <script src="/static/app.js" defer></script>
+  <link rel="stylesheet" href="/static/generation-progress.css">
+  <script src="/static/generation-progress.js" defer></script>
   <script src="/static/live.js" defer></script>
+<link rel="stylesheet" href="/static/studio.css">
+<link rel="stylesheet" href="/static/portal.css">
+<script src="/static/portal.js" defer></script>
+<link rel="stylesheet" href="/static/feature-deck.css">
+<script src="/static/feature-deck.js" defer></script>
+<link rel="stylesheet" href="/static/product-stage.css">
+<script src="/static/product-stage.js" defer></script>
+<link rel="stylesheet" href="/static/image-studio.css">
+<script src="/static/image-studio.js" defer></script>
 </head>
-<body>
+<body class="portal-active">
+<section id="portal" class="portal" aria-label="华为 PC 创作空间入口">
+  <div class="portal-scene" aria-hidden="true">
+    <img class="portal-sky" src="https://motionsites.org/assets/prompt-media/ee40c389c0481c86a909.png" alt="" fetchpriority="high">
+    <img class="portal-glow" src="https://motionsites.org/assets/prompt-media/b5ee731d6c1d435c0267.png" alt="">
+    <img class="portal-town" src="https://motionsites.org/assets/prompt-media/5b16d471b78820601ffb.png" alt="">
+    <h1 class="portal-title">越过想象<span>BEYOND THE BRIEF</span></h1>
+    <img class="portal-bridge" src="https://motionsites.org/assets/prompt-media/9467466de651dd1691cb.png" alt="" fetchpriority="high">
+    <img class="portal-bank portal-bank-left" src="https://motionsites.org/assets/prompt-media/05357f8b7c0b8994b686.png" alt="">
+    <img class="portal-bank portal-bank-right" src="https://motionsites.org/assets/prompt-media/b859e7c694aee8f86cfa.png" alt="">
+    <div class="portal-shade"></div>
+  </div>
+  <header class="portal-header"><a class="portal-wordmark" href="#">HUAWEI PC<span>CONTENT STUDIO</span></a><span class="portal-header-center">从真实出发，让灵感抵达。</span><button id="skip-portal" class="portal-skip">直接进入工作台 <span aria-hidden="true">↗</span></button></header>
+  <div class="portal-invitation"><p>跨过灵感与表达之间的距离</p><button id="enter-portal" class="portal-enter"><span>开始创作</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" stroke="currentColor" stroke-width="1.5"/></svg></button><small id="portal-status" role="status">点击进入华为 PC 营销智能体</small></div>
+  <footer class="portal-footer"><div><span>连接事实，也连接想象。</span><p>产品资料 · 场景策略 · 图文创作</p></div><div class="portal-location"><span>MOSTAR · A PASSAGE TO IDEAS</span><small>华为 PC 营销智能体 · 团队参赛作品</small></div><span class="portal-counter">灵感在此，表达由你。</span></footer>
+</section>
+
+<div id="studio-shell" hidden inert><header class="scenic-header">
+  <a class="scenic-brand" href="/" aria-label="返回华为 PC 封面">HUAWEI PC<span>CONTENT STUDIO</span></a>
+  <p>连接事实，也连接想象。</p>
+  <div class="scenic-header-actions"><button class="scenic-link" data-open-feature="connection">连接设置</button><button id="replay-portal" class="scenic-link">返回封面 <span aria-hidden="true">↗</span></button></div>
+</header>
+<section class="feature-navigation" aria-label="工作台功能">
+  <div id="feature-deck" class="feature-deck" role="group" aria-label="横向滚动查找功能，点击卡片展开面板" tabindex="0"></div>
+  <div class="feature-deck-footer"><p>点击卡片打开功能 <span>·</span> 在卡片上滚动鼠标，查找更多</p><div><span id="deck-position" aria-live="polite">1 / 7</span><button id="deck-prev" class="deck-arrow" aria-label="向前查找功能"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button><button id="deck-next" class="deck-arrow" aria-label="向后查找功能"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg></button></div></div>
+</section>
+<div class="scenic-idle" id="scenic-idle"><span>让想法，在这里发生。</span><p>选择上方功能，开始一段有据可依的创作。</p></div>
+
   <aside class="sidebar">
     <a href="/" class="brand"><span class="brand-symbol">P<span>c</span></span><span>内容工作台<small>PC CONTENT STUDIO</small></span></a>
     <div class="project-tag"><span class="dot"></span> 华为 PC 营销智能体 <span class="tag-arrow">↗</span></div>
@@ -25,28 +64,36 @@
     <div class="sidebar-footer"><span class="avatar">PC</span><div>三人协作 · 参赛开发<small>非华为官方应用</small></div><span class="footer-dot">●</span></div>
   </aside>
 
-  <main class="main">
+  <main id="feature-panel" class="main" aria-labelledby="feature-panel-title"><header id="feature-panel-heading" class="feature-panel-heading"><div><h2 id="feature-panel-title">创作任务</h2><p id="feature-panel-description"></p></div><div><div class="review-actions"><button id="feature-copy" type="button">复制图文</button><button id="feature-export" type="button">导出文件</button></div><button id="new-feature-task" class="new-feature-task" type="button">新建任务</button><button id="close-feature" class="close-feature" type="button" aria-label="收起功能面板"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div></header>
     <header class="topbar"><div class="breadcrumb">创作空间 <span>/</span> <strong id="page-name">图文创作</strong></div><div class="topbar-right"><span class="build-tag">首版 0.3</span><button id="connection-shortcut" class="connection-chip"><span class="dot amber"></span><span id="top-status">检查本机配置中</span></button></div></header>
 
     <section id="workspace-view" class="view">
       <div class="page-heading"><div><div class="eyebrow">CREATE WITH CONTEXT</div><h1>让好产品，遇见对的表达<span>。</span></h1><p>从人群与场景出发，组织一篇有据可依的图文内容。</p></div><button id="new-task" class="button secondary"><span>＋</span> 新建任务</button></div>
       <div class="workflow" aria-label="创作流程"><div class="workflow-step current"><b>01</b> 需求输入</div><i></i><div class="workflow-step"><b>02</b> 平台策略</div><i></i><div class="workflow-step"><b>03</b> 资料与配图</div><i></i><div class="workflow-step"><b>04</b> 图文预览</div><i></i><div class="workflow-step"><b>05</b> 核验与导出</div></div>
-      <div class="workspace-grid">
+      <div class="workspace-grid"><section id="feature-empty" class="feature-empty" aria-label="功能使用提示"></section>
         <section class="panel input-panel">
           <div class="panel-heading"><div><span class="section-index">01</span><h2>这次，为谁而写？</h2></div><span class="subtle">任务设置</span></div>
           <div class="mode-switch" aria-label="工作模式"><button class="selected" data-mode="demo">演示预览</button><button data-mode="live">真实图文创作</button></div>
           <div id="mode-note" class="mode-note"><span>◈</span> 当前使用规则示例，不调用模型或真实产品资料。</div>
-          <button id="browse-library" class="library-entry" type="button" hidden>⌘ 浏览知识库目录 <span>→</span></button>
+          <button id="browse-library" class="library-entry" type="button" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg> 浏览知识库目录 <span>→</span></button>
           <form id="task-form" novalidate>
-            <label for="product">产品型号 <span>*</span></label><input id="product" name="product" value="HUAWEI MateBook 14（鸿蒙版）" placeholder="填写具体型号、系统与销售版本" maxlength="160">
+<div class="source-selector"><label for="creative-source">产品资料来源</label><select id="creative-source"><option value="official">华为官网 · 自动读取原文与图片</option><option value="ima">ima / 已配置的本地资料 · 手动选择</option></select><p>结合本地 v7 知识库的平台与场景指导创作。</p></div>
+<div id="product-stage" class="product-stage" hidden aria-labelledby="product-stage-title"></div>
+            <label for="product">产品型号 <span>*</span></label><input id="product" list="official-product-list" name="product" value="HUAWEI MateBook 14（鸿蒙版）" placeholder="填写具体型号、系统与销售版本" maxlength="160">
             <label>发布平台 <span>*</span></label>
-            <div class="platform-picker" role="group" aria-label="发布平台"><button type="button" class="platform-card selected" data-platform="xiaohongshu"><span class="platform-icon red">小红书</span><strong>小红书</strong><small>场景种草</small></button><button type="button" class="platform-card" data-platform="wechat_article"><span class="platform-icon green">文</span><strong>公众号</strong><small>深入讲述</small></button><button type="button" class="platform-card" data-platform="wechat_moments"><span class="platform-icon blue">◉</span><strong>朋友圈</strong><small>轻量触达</small></button></div>
+            <div class="platform-picker" role="group" aria-label="发布平台"><button type="button" class="platform-card selected" data-platform="xiaohongshu"><span class="platform-icon red">小红书</span><strong>小红书</strong><small>场景种草</small></button><button type="button" class="platform-card" data-platform="wechat_article"><span class="platform-icon green">文</span><strong>公众号</strong><small>深入讲述</small></button><button type="button" class="platform-card" data-platform="wechat_moments"><span class="platform-icon blue"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M6 7h11l-5 13M4 13l9-9 7 10"/></svg></span><strong>朋友圈</strong><small>轻量触达</small></button></div>
             <div class="field-row"><div><label for="audience">目标人群 <span>*</span></label><input id="audience" value="大学新生" placeholder="例如：经常出差的职场人" maxlength="100"></div><div><label for="purchase-stage">购买阶段</label><select id="purchase-stage"><option>了解与比较</option><option>准备购买</option><option>到店体验</option><option>换机评估</option></select></div></div>
             <label for="scenario">使用场景 <span>*</span></label><textarea id="scenario" rows="3" placeholder="希望解决什么问题？在哪里、如何使用？" maxlength="1000">开学购机，兼顾课堂学习、宿舍整理资料和日常携带。</textarea>
             <label for="goal">内容目标 <span>*</span></label><select id="goal"><option>帮助判断是否适合，引导到店体验</option><option>建立产品认知，吸引进一步咨询</option><option>解释使用场景，帮助比较选择</option><option>提供一个明确的到店体验理由</option></select>
             <div class="quick-start"><span>快速填入场景</span><div><button type="button" data-preset="campus">↗ 开学购机</button><button type="button" data-preset="office">↗ 移动办公</button><button type="button" data-preset="store">↗ 门店到访</button></div></div>
             <div id="form-message" class="form-message" role="status" hidden></div>
-            <button id="generate" class="button primary generate" type="submit"><span>✧</span><span id="generate-label">生成演示预览</span><span class="button-arrow">→</span></button>
+            <section id="generation-progress" class="generation-progress" aria-labelledby="generation-progress-title" hidden>
+              <div class="generation-progress-heading"><span class="generation-spinner" aria-hidden="true"></span><strong id="generation-progress-title" role="status" aria-live="polite">正在检查创作需求…</strong><span id="generation-elapsed" class="generation-elapsed" aria-live="off">已等待 00:00</span></div>
+              <progress id="generation-meter" max="4" value="0" aria-label="创作阶段完成数" aria-describedby="generation-progress-detail"></progress>
+              <ol class="generation-steps" aria-label="创作流程"><li data-phase="sources">读取资料</li><li data-phase="extract">提取事实</li><li data-phase="write">创作文案</li><li data-phase="review">核验图文</li></ol>
+              <p id="generation-progress-detail" class="generation-progress-detail">进度按实际处理阶段更新。</p>
+            </section>
+            <button id="generate" class="button primary generate" type="submit"><svg class="generate-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m4 20 12-12 4 4L8 24M16 3v-2M22 8h2M4 5h4M6 3v4"/></svg><span id="generate-label">生成演示预览</span><span class="button-arrow">→</span></button>
             <p class="form-footnote" id="form-footnote">演示稿包含占位内容，需要接入 ima 与模型后才能正式生成。</p>
           </form>
         </section>
@@ -73,9 +120,49 @@
 
     <section id="history-view" class="view" hidden><div class="page-heading"><div><div class="eyebrow">YOUR RECENT WORK</div><h1>最近任务<span>。</span></h1><p>演示任务只保存在当前浏览器，最多保留 10 条。</p></div><button id="clear-history" class="button secondary">清空记录</button></div><div id="history-list" class="history-list"></div></section>
 
-    <section id="connection-view" class="view" hidden><div class="page-heading"><div><div class="eyebrow">A FOUNDATION OF FACTS</div><h1>让内容，连接真实依据<span>。</span></h1><p>检查本机环境，再确认指定共享知识库是否可访问。</p></div><button id="refresh-status" class="button secondary">↻ 刷新配置状态</button></div><div class="connection-grid"><section class="panel connection-panel"><h2>本机连接配置</h2><p class="subtle">凭证由本机配置读取，页面只显示是否就绪。</p><div id="config-checks"></div><label for="kb-name">共享知识库名称</label><input id="kb-name" value="任德耀新建华为PC知识库" maxlength="200"><button id="probe-connection" class="button primary">检查共享库连接 <span>→</span></button><div id="probe-result" class="connection-result" role="status"></div></section><section class="panel connection-guide"><div class="guide-symbol">⌘</div><h2>开始前，完成这三步</h2><ol><li><strong>用同一账号加入共享库</strong><p>扫描赛题手册第 7 页二维码，确认共享库出现在 ima 中。</p></li><li><strong>在本机配置凭证</strong><p>Client ID、API Key 和官方脚本路径保存在仓库的 .env 文件中。修改后需重启工作台。</p></li><li><strong>检查连接，再搜索产品</strong><p>共享库可访问后，在创作页切换“真实资料检索”，检索具体型号。</p></li></ol><div class="guide-note">已支持真实搜索、目录浏览、原文与图片预览，以及批量读取选中资料。已支持原文提取、图文生成、单独模型核验与按意见重写；发布前请人工复核。</div></section></div></section>
+    <section id="connection-view" class="view" hidden><div class="page-heading"><div><div class="eyebrow">A FOUNDATION OF FACTS</div><h1>让内容，连接真实依据<span>。</span></h1><p>检查本机环境，再确认指定共享知识库是否可访问。</p></div><button id="refresh-status" class="button secondary">↻ 刷新配置状态</button></div><section id="qwen-studio" class="image-studio" aria-labelledby="image-studio-title">
+  <div class="image-studio-heading"><div><h2 id="image-studio-title">团队模型与场景生图</h2><p>文案与图片核验、场景生图分别选择模型，共用团队百炼 Key。</p></div><span id="image-config-state" class="image-config-state">读取配置中</span></div>
+  <p id="image-feedback" class="image-feedback" role="status" aria-live="polite" hidden></p>
+  <form id="image-setup-form" class="image-form" hidden>
+    <h3>创建管理员</h3><p class="image-help">首次设置即可。管理员密码用于修改 Key；团队访问码用于成员生图，请分别设置。</p>
+    <div class="image-fields"><div><label for="image-admin-password">管理员密码</label><input id="image-admin-password" type="password" autocomplete="new-password" minlength="10" maxlength="200" placeholder="至少 10 位" required></div><div><label for="image-admin-confirm">确认管理员密码</label><input id="image-admin-confirm" type="password" autocomplete="new-password" minlength="10" maxlength="200" required></div></div>
+    <label for="image-team-password">团队访问码</label><input id="image-team-password" type="password" autocomplete="new-password" minlength="8" maxlength="200" placeholder="至少 8 位，分享给团队成员" required>
+    <div id="image-setup-token-field" hidden><label for="image-setup-token">部署初始化码</label><input id="image-setup-token" type="password" autocomplete="off" maxlength="300"><p class="image-help">填写部署平台中设置的 WORKBENCH_SETUP_TOKEN。</p></div>
+    <button class="button primary" type="submit">创建并进入管理</button>
+  </form>
+  <form id="image-login-form" class="image-form" hidden>
+    <h3>登录生图服务</h3><div class="image-fields"><div><label for="image-login-role">登录身份</label><select id="image-login-role"><option value="member">团队成员</option><option value="admin">管理员</option></select></div><div><label for="image-login-password">密码或访问码</label><input id="image-login-password" type="password" autocomplete="current-password" maxlength="200" required></div></div><button class="button primary" type="submit">登录</button><p class="image-help">成员使用团队访问码；完整 API Key 仅由后端保存，不向成员显示。</p>
+  </form>
+  <div id="image-session-controls" class="image-session" hidden><span id="image-session-role"></span><button id="image-logout" class="small-button" type="button">退出登录</button></div>
+  <section id="text-model-section" class="image-form" aria-labelledby="text-model-title" hidden>
+    <div class="image-section-title"><h3 id="text-model-title">文案与图片核验</h3><span id="text-model-state" class="image-config-state">尚未配置</span></div>
+    <p class="image-help">负责写文案、提取资料事实和查看产品图片。使用已保存的团队百炼 Key，无需重复填写。</p>
+    <form id="text-model-form" hidden>
+      <label for="text-model-name">支持看图的文案模型</label><select id="text-model-name"></select>
+      <div class="image-actions"><button id="text-model-save" class="button primary" type="submit">保存文案模型</button><button id="text-model-probe" class="button secondary" type="button">验证看图与 JSON</button></div>
+      <p class="image-help">保存后立即生效。验证使用一张测试色块图，会产生模型用量，不读取知识库。</p>
+    </form>
+  </section>
+  <form id="image-settings-form" class="image-form" hidden>
+    <h3>场景生图与团队 Key</h3><label for="image-api-key">百炼 API Key</label><div class="image-key-field"><input id="image-api-key" type="password" autocomplete="new-password" maxlength="4096" placeholder="粘贴完整 Key"><button id="image-toggle-key" class="small-button" type="button" aria-pressed="false">显示</button></div><p id="image-key-hint" class="image-help"></p>
+    <label for="image-model">生图模型</label><select id="image-model"></select>
+    <details class="image-endpoint"><summary>接口地址与地域</summary><label for="image-base-url">百炼 Base URL</label><input id="image-base-url" type="url" inputmode="url" maxlength="300" required><p class="image-help">接口与 Key 须属于同一地域。支持百炼官方地址，结尾为 /compatible-mode/v1。</p></details>
+    <div class="image-actions"><button class="button primary" type="submit">保存团队配置</button><button id="image-clear-key" class="button secondary" type="button">清除 Key</button></div>
+    <p class="image-help">保存不会调用模型。点击“生成场景图”才会发起一次生图请求，费用由百炼账户承担。</p>
+  </form>
+  <form id="image-generate-form" class="image-form" hidden>
+    <div class="image-section-title"><h3>创作场景图</h3><button id="image-use-task" class="small-button" type="button">使用当前任务场景</button></div>
+    <label for="image-prompt">画面描述</label><textarea id="image-prompt" rows="5" maxlength="6000" placeholder="例如：午后校园自习室，窗边的木质书桌、书本和绿植，柔和自然光，留出产品和标题的位置，不出现电脑、Logo 或参数。" required></textarea>
+    <label for="image-size">画面比例</label><select id="image-size"><option value="1024x1024">方图 · 1:1</option><option value="1536x2048">竖图 · 3:4</option><option value="2048x1536">横图 · 4:3</option></select>
+    <button id="image-generate" class="button primary" type="submit">生成场景图</button><p id="image-generate-hint" class="image-help">生成可能需要一段时间，请等待本次结果。</p>
+  </form>
+  <figure id="image-result" class="image-result" hidden><img id="image-result-preview" alt="AI 生成的场景示意，不代表真实产品或实际体验"><figcaption><strong>AI 场景示意</strong><p id="image-result-note"></p><a id="image-download" class="button secondary" download="AI场景示意.png">下载图片</a></figcaption></figure>
+</section>
+<div class="connection-grid"><section class="panel connection-panel"><h2>本机连接配置</h2><p class="subtle">凭证由本机配置读取，页面只显示是否就绪。</p><div id="config-checks"></div><label for="kb-name">共享知识库名称</label><input id="kb-name" value="任德耀新建华为PC知识库" maxlength="200"><button id="probe-connection" class="button primary">检查共享库连接 <span>→</span></button><div id="probe-result" class="connection-result" role="status"></div></section><section class="panel connection-guide"><div class="guide-symbol">⌘</div><h2>开始前，完成这三步</h2><ol><li><strong>用同一账号加入共享库</strong><p>扫描赛题手册第 7 页二维码，确认共享库出现在 ima 中。</p></li><li><strong>在本机配置凭证</strong><p>Client ID、API Key 和官方脚本路径保存在仓库的 .env 文件中。修改后需重启工作台。</p></li><li><strong>检查连接，再搜索产品</strong><p>共享库可访问后，在创作页切换“真实资料检索”，检索具体型号。</p></li></ol><div class="guide-note">已支持真实搜索、目录浏览、原文与图片预览，以及批量读取选中资料。已支持原文提取、图文生成、单独模型核验与按意见重写；发布前请人工复核。</div></section></div></section>
     <dialog id="resource-dialog" class="resource-dialog"><div class="resource-header"><div><span class="source-label real">ima 真实资料</span><h2 id="resource-title"></h2></div><button id="close-resource" class="dialog-close" aria-label="关闭资料">×</button></div><div id="resource-source" class="resource-source"></div><div id="resource-body" class="resource-body"></div><div class="resource-footer"><span>仅从知识库读取，不代表已完成产品语义核验。</span><div><button id="copy-resource" class="button secondary">复制原文</button><button id="select-resource" class="button primary">加入资料篮</button></div></div></dialog>
     <div id="toast" class="toast" role="status" hidden></div>
   </main>
+</div>
+<datalist id="official-product-list"></datalist>
 </body>
 </html>

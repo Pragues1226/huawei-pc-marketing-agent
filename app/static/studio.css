@@ -1,0 +1,17 @@
+:root{--bg:#f4f3ef;--paper:#fffefa;--ink:#1e3538;--muted:#647674;--green:#236a68;--green-dark:#184c4d;--line:#e2e5de;--light-green:#eaf0eb;--sidebar:232px}
+body{font-size:13px}.sidebar{background:#153c3e;color:#c5d7d0;padding-top:30px}.brand-symbol{border-radius:50%;border-color:#7c9a8c}.brand{font-family:"思源宋体 VF","Source Han Serif SC VF",serif;font-weight:500}.project-tag{border-color:#436260}.nav-item.active{background:#e9efe4;color:#244c46}.nav-item:hover{background:#ffffff12}.nav-item.active:hover{background:#e9efe4}.sidebar-note{border-color:#41615e}.sidebar-footer{border-color:#41615e}.topbar{background:#fffefa;border-bottom:1px solid var(--line)}.page-heading h1{font-family:"思源宋体 VF","Source Han Serif SC VF",serif;font-weight:500;letter-spacing:0;font-size:30px}.page-heading p{color:#667571}.eyebrow{display:none}.panel{border-radius:12px;box-shadow:none;background:#fffefa;border-color:var(--line)}.panel-heading{border-color:var(--line)}.section-index{color:#6f8179}.workflow{background:#ecefe8;border-radius:8px}.workflow-step.current{color:#205957}.button.primary{background:#215e5c}.button.primary:hover{background:#164a48}.button.secondary{background:#fffefa;border-color:#d6ded6}.platform-card.selected{border-color:#4a7c70;background:#ecf3eb}.mode-switch .selected{background:#fffefa;color:#245b55}.mode-note{background:#f1f2e9;color:#52695e}.subtle{color:#62736d}.workspace-footer{color:#63736b}.brand small{color:#a5c0b5}.studio-cover-link{color:#385f58;border:1px solid #d5ded4;background:#fffefa;border-radius:99px;padding:7px 13px;font-size:11px;white-space:nowrap}.studio-cover-link:hover{background:#eaf0e8}input,textarea,select{background:#fffefa}.page-heading{gap:20px}.workspace-footer{gap:16px;flex-wrap:wrap}
+@media(max-width:800px){.page-heading h1{font-size:25px}.studio-cover-link{padding:6px 10px}.topbar-right{gap:8px}.build-tag{display:none}}
+::selection{background:#b8d2c0;color:#143d3a}
+@media(max-width:1180px){:root{--sidebar:188px}}
+@media(max-width:980px){:root{--sidebar:76px}}
+@media(max-width:480px){:root{--sidebar:58px}.page-heading h1{font-size:24px;line-height:1.5}.breadcrumb{display:none}.topbar{justify-content:flex-end}.topbar-right{width:100%;justify-content:space-between}.workspace-footer{font-size:10px}.view{min-width:0}.field-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.result-tabs{gap:10px}}
+
+/* Opaque functional surfaces above a quiet, fixed photographic background. */
+body.studio-active{background:transparent}
+.studio-active .main,.studio-active .view{background:transparent}
+.studio-active .panel,.studio-active .topbar{background:#fffefa}
+.studio-active .page-heading{background:rgba(244,243,239,.68);border-radius:10px;padding:16px 18px}
+.studio-active .workflow{background:#ecefe8}
+.studio-active .workspace-footer{color:#405b53}
+/* Keep blocking review items visible before successful checks. */
+.review-summary{margin:16px 0;color:#526558;font-size:13px;line-height:1.7}.review-passed{margin-top:22px;border-top:1px solid #e2e5de;padding-top:14px}.review-passed>summary{min-height:44px;cursor:pointer;color:#526558;font-size:13px;line-height:1.7}.review-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.review-actions .button{min-height:44px}.review-passed>summary:focus-visible{outline:2px solid #215e5c;outline-offset:3px}.review-passed .check-card{margin-top:12px}

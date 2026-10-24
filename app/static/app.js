@@ -186,11 +186,23 @@ function renderReview() {
   const container = $("#review-tab");
   container.replaceChildren(...detailHeader(report.status === "blocked" ? "发现需要处理的问题" : "结构已检查，内容仍需复核。", "结构通过不等于事实准确或可以发布。来源真实性、正文语义及图片画面需要独立确认。"));
   const names = {fact: "事实与来源", image: "图片与型号", compliance: "营销表达", platform: "平台与结构"};
-  for (const check of report.checks) {
+  const issues = report.checks.filter(check => check.status !== 'pass').sort((a,b)=>(a.status==='fail'?0:1)-(b.status==='fail'?0:1));
+  const passed = report.checks.filter(check => check.status === 'pass');
+  const summary = element('p','review-summary', issues.length ? `还有 ${issues.length} 项待处理，已检查 ${passed.length} 项。请先查看下面的问题。` : `本次列出的 ${passed.length} 项检查已通过。发布前请人工复核。`);
+  container.append(summary);
+  function cardFor(check) {
     const card = element("div", "check-card " + check.status);
     const text = element("div"); text.append(element("strong", "", names[check.category]), element("p", "", check.detail));
     card.append(element("span", "check-icon", {pass: "✓", pending: "!", fail: "×"}[check.status]), text, element("span", "check-tag", {pass: "结构通过", pending: "待复核", fail: "需处理"}[check.status]));
-    container.append(card);
+    return card;
+  }
+  issues.forEach(check=>container.append(cardFor(check)));
+  if (passed.length) {
+    const details = element('details','review-passed');
+    details.open = issues.length === 0;
+    details.append(element('summary','',`已检查的 ${passed.length} 项`));
+    passed.forEach(check=>details.append(cardFor(check)));
+    container.append(details);
   }
   const pending = report.checks.filter(check => check.status !== "pass").length;
   $("#review-count").textContent = pending;
@@ -198,7 +210,7 @@ function renderReview() {
 }
 
 function renderResult(result, save = true) {
-  if (result.mode === "live") return renderLiveResult(result);
+  if (["live", "local"].includes(result.mode)) return renderLiveResult(result);
   state.current = result;
   $(".cover-preview img").src = "/static/illustration.svg";
   $(".cover-text").hidden = false;
@@ -317,7 +329,7 @@ function updateBasket() {
     retrievalContext = result; showRetrieved(result);
   }));
   const create = element("button", "button primary", "用这些资料生成"); create.disabled = !selection.size;
-  create.addEventListener("click", () => createLive(create));
+  create.addEventListener("click", () => createLive(create, "ima"));
   actions.append(clear, read, create); basket.append(actions);
 }
 
@@ -355,7 +367,7 @@ function showRetrieved(result) {
   const back = element("button", "button secondary", "← 返回检索结果"); back.addEventListener("click", () => { if (listingState) renderSearch(listingState); else browseDirectory(); });
   const copy = element("button", "button primary", "复制调用结果"); copy.addEventListener("click", async () => { try { await navigator.clipboard.writeText(JSON.stringify(retrievalContext, null, 2)); toast("已复制真实检索内容与来源，可供后续模块调用"); } catch { toast("浏览器未允许复制"); } });
   const create = element("button", "button primary", "用这些资料生成");
-  create.addEventListener("click", () => createLive(create));
+  create.addEventListener("click", () => createLive(create, "ima"));
   toolbar.append(back, copy, create); container.append(toolbar);
   container.append(element("div", "search-notice", "已读取 " + result.documents.length + " 份原文、" + result.images.length + " 张图片。内容仅在本机显示，不保存到代码仓库。"));
   for (const warning of result.warnings) container.append(element("p", "retrieval-warning", warning));
@@ -372,7 +384,7 @@ async function generate() {
   $("#form-message").hidden = true;
   await withBusy(button, async () => {
     if (state.mode === "live") {
-      if (selection.size) return createLive(button);
+      if (document.getElementById("creative-source")?.value !== "ima" || selection.size) return createLive(button);
       if (!task.product) { $("#form-message").textContent = "请先填写需要检索的具体产品型号。"; $("#form-message").hidden = false; return; }
       const query = task.product.replace(/[（(].*?[）)]/g, "").replace(/^HUAWEI\s+/i, "").trim();
       renderSearch(await api("/api/search", {query, knowledge_base: $("#kb-name").value.trim()}));
@@ -393,23 +405,23 @@ async function generate() {
 }
 
 function articleMarkdown() {
-  if (state.current?.mode === "live") return liveMarkdown();
+  if (["live", "local"].includes(state.current?.mode)) return liveMarkdown();
   const {task, article, evidence, review} = state.current;
   return ["> 开发演示 · 未调用大模型 · 事实和图片为占位 · 不可作为正式发布稿或参赛运行证明", "", "# " + article.title, "", "平台：" + platformNames[task.platform] + "；目标人群：" + task.audience, "型号：" + task.product, "场景：" + task.scenario, "", article.lead, "", article.body, "", article.cta, "", article.tags.map(tag => "#" + tag).join(" "), "", "## 配图方案（待替换 ima 真实图片）", ...article.image_plan.map((image, index) => `${index + 1}. ${image.position}：${image.caption}。${image.reason}`), "", "## 来源状态", ...evidence.sources.map(source => "- " + source.title), "", "## 核验结果", ...review.checks.map(check => "- [" + {pass: "结构通过", pending: "待复核", fail: "需处理"}[check.status] + "] " + check.detail)].join("\n");
 }
 
 async function copyArticle() {
   if (!state.current) return;
-  if (state.current.mode === "live" && state.current.status !== "ready") return toast("核验尚未全部通过，请先处理问题后复制交付稿。");
+  if (["live", "local"].includes(state.current.mode) && state.current.status !== "ready") return toast("核验尚未全部通过，请先处理问题后复制交付稿。");
   try {
     await navigator.clipboard.writeText(articleMarkdown());
-    toast(state.current.mode === "live" ? "已复制真实文案、来源与核验说明" : "已复制，包含演示标记与核验说明");
+    toast(["live", "local"].includes(state.current.mode) ? "已复制真实文案、来源与核验说明" : "已复制，包含演示标记与核验说明");
   } catch { toast("浏览器未允许复制，请使用导出文件"); }
 }
 
 function exportArticle() {
   if (!state.current) return;
-  if (state.current.mode === "live") return withBusy($("#export-md"), exportLiveHTML);
+  if (["live", "local"].includes(state.current.mode)) return withBusy($("#export-md"), exportLiveHTML);
   const blob = new Blob([articleMarkdown()], {type: "text/markdown;charset=utf-8"});
   const url = URL.createObjectURL(blob);
   const link = element("a"); link.href = url;
@@ -435,9 +447,9 @@ async function saveEdit() {
     article.title = $("#edit-title").value.trim();
     article.body = $("#edit-body").value.trim();
     article.cta = $("#edit-cta").value.trim();
-    if (state.current.mode === "live") {
+    if (["live", "local"].includes(state.current.mode)) {
       toast("正在对修改后的全文重新核验…");
-      renderLiveResult(await api("/api/revise", {run_ref: state.current.run_ref, article}));
+      renderLiveResult(await api("/api/revise", {run_ref: state.current.run_ref, source: state.current.data_source?.mode, article}));
       return;
     }
     const review = await api("/api/review", {task: state.current.task, evidence: state.current.evidence, article});
@@ -482,7 +494,7 @@ async function refreshStatus() {
     $("#top-status").textContent = connected ? "ima 共享库已连接" : prerequisites ? "凭证就绪 · 待检查共享库" : "ima 待配置";
     $("#connection-shortcut .dot").classList.toggle("amber", !connected);
     $("#nav-connection").classList.toggle("connected", connected);
-    const rows = [["Node.js 运行环境", status.ima.node_available], ["官方 ima 技能脚本", status.ima.official_script_available], ["Client ID", status.ima.client_id_configured], ["API Key", status.ima.api_key_configured], ["图文生成模型配置", status.model_configured]];
+    const rows = [["Node.js 运行环境", status.ima.node_available], ["官方 ima 技能脚本", status.ima.official_script_available], ["Client ID", status.ima.client_id_configured], ["API Key", status.ima.api_key_configured], ["文案与图片核验模型", status.model_configured]];
     $("#config-checks").replaceChildren(...rows.map(([label, configured]) => {
       const row = element("div", "config-row"); row.append(element("span", "", label), element("span", configured ? "" : "missing", configured ? "已配置" : "待配置")); return row;
     }));

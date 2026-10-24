@@ -1,0 +1,23 @@
+.generation-progress{margin:16px 0 20px;padding:16px;border:1px solid #dfe5dd;border-radius:7px;background:#f3f6f0;color:#1e3538;scroll-margin-bottom:20px}
+.generation-progress-heading{display:flex;align-items:center;gap:10px;min-width:0}
+.generation-progress-heading strong{font-size:13px;font-weight:600;line-height:1.6}
+.generation-elapsed{margin-left:auto;flex-shrink:0;color:#526558;font-size:12px;font-variant-numeric:tabular-nums}
+.generation-spinner{width:15px;height:15px;flex-shrink:0;border:2px solid #c9d6ca;border-top-color:#215e5c;border-right-color:#215e5c;border-radius:50%;animation:generation-turn 900ms linear infinite}
+.generation-progress progress{display:block;appearance:none;-webkit-appearance:none;width:100%;height:5px;margin:14px 0 10px;border:0;border-radius:99px;overflow:hidden;background:#dfe5dd;color:#215e5c}
+.generation-progress progress::-webkit-progress-bar{background:#dfe5dd;border-radius:99px}
+.generation-progress progress::-webkit-progress-value{background:#215e5c;border-radius:99px}
+.generation-progress progress::-moz-progress-bar{background:#215e5c;border-radius:99px}
+.generation-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;list-style:none;padding:0;margin:0;color:#647674;font-size:12px;line-height:1.6}
+.generation-steps li{position:relative;padding-top:4px}
+.generation-steps li[aria-current=step]{color:#215e5c;font-weight:600}
+.generation-steps li.is-done{color:#355e50}
+.generation-steps li.is-stopped{color:#8c3434;font-weight:600}
+.generation-progress-detail{margin:10px 0 0;color:#526558;font-size:12px;line-height:1.7;overflow-wrap:anywhere}
+.generation-progress[data-state=error],.generation-progress[data-state=blocked]{background:#fff8ed}
+.generation-progress[data-state=error] .generation-progress-heading strong,.generation-progress[data-state=blocked] .generation-progress-heading strong{color:#8c3434}
+.generation-progress[data-state=ready] .generation-spinner{border-color:#215e5c;background:#215e5c}
+.generation-progress:not([data-state=running]) .generation-spinner{animation:none;border-top-color:currentColor}
+.generation-progress.is-background .generation-spinner{animation-play-state:paused}
+@keyframes generation-turn{to{transform:rotate(360deg)}}
+@media(max-width:600px){.generation-progress{padding:14px}.generation-progress-heading{flex-wrap:wrap;gap:8px}.generation-elapsed{margin-left:23px;width:100%}.generation-steps{gap:4px;font-size:11px}}
+@media(prefers-reduced-motion:reduce){.generation-spinner{animation:none;border-style:dotted}}
