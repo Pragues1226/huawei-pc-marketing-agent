@@ -1,64 +1,83 @@
 @echo off
+setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001 >nul
-setlocal
 title Huawei PC Content Studio
-cd /d "%~dp0"
+set "WORKBENCH_ROOT=%~dp0"
+set "WORKBENCH_STEP=locate project files"
+cd /d "%WORKBENCH_ROOT%"
+if errorlevel 1 goto failed
 set "PYTHONUTF8=1"
 set "PYTHONIOENCODING=utf-8"
+set "PIP_DISABLE_PIP_VERSION_CHECK=1"
+set "PIP_NO_CACHE_DIR=1"
+if not exist "%WORKBENCH_ROOT%requirements.txt" goto missing_files
+if not exist "%WORKBENCH_ROOT%app\__main__.py" goto missing_files
 
-if exist ".venv\Scripts\python.exe" goto use_venv
+set "WORKBENCH_PYTHON=%WORKBENCH_ROOT%.venv\Scripts\python.exe"
+if not exist "%WORKBENCH_PYTHON%" goto find_python
+"%WORKBENCH_PYTHON%" -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>&1
+if not errorlevel 1 goto install_dependencies
+
+:find_python
+set "WORKBENCH_BASE="
+set "WORKBENCH_ARGS="
+for /d %%D in ("%WORKBENCH_ROOT%.runtime\python\cpython-*-windows-x86_64-none") do if exist "%%~fD\python.exe" (
+    set "WORKBENCH_BASE=%%~fD\python.exe"
+    goto create_environment
+)
 python -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>&1
-if not errorlevel 1 goto use_python
+if not errorlevel 1 (
+    set "WORKBENCH_BASE=python"
+    goto create_environment
+)
 py -3 -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>&1
-if not errorlevel 1 goto use_py
-echo 未找到可用的 Python 3.10 或更高版本。
-echo 请安装 Python，并启用 Add Python to PATH 后重新双击本文件。
+if not errorlevel 1 (
+    set "WORKBENCH_BASE=py"
+    set "WORKBENCH_ARGS=-3"
+    goto create_environment
+)
+echo No usable Python was found. Keep the bundled .runtime folder with this project.
+set "WORKBENCH_STEP=find local Python"
 goto failed
 
-:use_venv
-set "WORKBENCH_PYTHON=%CD%\.venv\Scripts\python.exe"
-set "WORKBENCH_ARGS="
-goto check_environment
-
-:use_python
-set "WORKBENCH_PYTHON=python"
-set "WORKBENCH_ARGS="
-goto check_environment
-
-:use_py
-set "WORKBENCH_PYTHON=py"
-set "WORKBENCH_ARGS=-3"
-
-:check_environment
-"%WORKBENCH_PYTHON%" %WORKBENCH_ARGS% -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>&1
-if errorlevel 1 goto invalid_environment
-"%WORKBENCH_PYTHON%" %WORKBENCH_ARGS% -c "from jsonschema import Draft202012Validator; import rfc3339_validator" >nul 2>&1
-if not errorlevel 1 goto launch
-
-echo 正在准备首次运行所需的依赖，请保持网络连接。
-if exist ".venv\Scripts\python.exe" goto install_dependencies
-"%WORKBENCH_PYTHON%" %WORKBENCH_ARGS% -m venv ".venv"
+:create_environment
+set "WORKBENCH_STEP=create project environment"
+echo Preparing the project environment...
+"%WORKBENCH_BASE%" %WORKBENCH_ARGS% -m venv "%WORKBENCH_ROOT%.venv"
 if errorlevel 1 goto failed
 
 :install_dependencies
-set "WORKBENCH_PYTHON=%CD%\.venv\Scripts\python.exe"
-set "WORKBENCH_ARGS="
-"%WORKBENCH_PYTHON%" -m pip install --disable-pip-version-check -r requirements.txt
+set "WORKBENCH_STEP=prepare pip"
+"%WORKBENCH_PYTHON%" -m pip --version >nul 2>&1
+if not errorlevel 1 goto install_packages
+"%WORKBENCH_PYTHON%" -m ensurepip --upgrade
+if errorlevel 1 goto failed
+
+:install_packages
+set "WORKBENCH_STEP=install project dependencies"
+if exist "%WORKBENCH_ROOT%.runtime\wheels\*.whl" goto offline_install
+"%WORKBENCH_PYTHON%" -m pip install --quiet -r "%WORKBENCH_ROOT%requirements.txt"
+if errorlevel 1 goto failed
+goto launch
+
+:offline_install
+"%WORKBENCH_PYTHON%" -m pip install --quiet --no-index --find-links "%WORKBENCH_ROOT%.runtime\wheels" -r "%WORKBENCH_ROOT%requirements.txt"
 if errorlevel 1 goto failed
 
 :launch
-echo 项目目录：%CD%
-echo 正在启动这份项目的新界面，浏览器将自动打开。
-"%WORKBENCH_PYTHON%" %WORKBENCH_ARGS% -m app --open --auto-port %*
+set "WORKBENCH_STEP=start local workbench"
+echo Project: %WORKBENCH_ROOT%
+echo Python: %WORKBENCH_PYTHON%
+"%WORKBENCH_PYTHON%" -m app --open --auto-port %*
 if errorlevel 1 goto failed
 exit /b 0
 
-:invalid_environment
-echo 本地 .venv 中的 Python 无法运行或低于 3.10。
-echo 请先修复或移走该虚拟环境，再重新启动。
+:missing_files
+echo Project files are missing. Keep this launcher, app and requirements.txt together.
 
 :failed
 echo.
-echo 启动未完成，请查看上方提示。此窗口不会自动关闭。
+echo Setup or launch failed at stage: %WORKBENCH_STEP%
+echo Review the message above. This window will remain open.
 pause
 exit /b 1

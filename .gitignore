@@ -48,3 +48,6 @@ Desktop.ini
 .upload-staging/
 .impeccable/
 .taste-skill/
+
+# Bundled local Python and offline dependencies
+.runtime/
